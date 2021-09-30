@@ -197,7 +197,7 @@ fnv1Primitive_ !addr !n !a tok = case loop a 0# tok of
         1# -> (# s, acc #)
         _ -> case readWord8OffAddr# addr i s of
             (# s1, w #) -> loop
-                ((p `timesWord#` acc) `xor#` w)
+                ((p `timesWord#` acc) `xor#` word8ToWord# w)
                 (i +# 1#)
                 s1
 
@@ -230,10 +230,20 @@ fnv1aPrimitive_ !addr !n !a tok = case loop a 0# tok of
         1# -> (# s, acc #)
         _ -> case readWord8OffAddr# addr i s of
             (# s1, w #) -> loop
-                (p `timesWord#` (acc `xor#` w))
+                (p `timesWord#` (acc `xor#` word8ToWord# w))
                 (i +# 1#)
                 s1
 
     !(W# p) = fnvPrime
 {-# INLINE fnv1aPrimitive_ #-}
 
+-- -------------------------------------------------------------------------- --
+-- Backward compatibility
+
+#if !MIN_VERSION_base(4,16,0)
+-- | 'readWord8OffAddr#' returns 'Word#' for base < 4.16.0. So, there's no
+-- need to convert it to 'Word#' down the road.
+--
+word8ToWord# :: Word# -> Word#
+word8ToWord# a = a
+#endif
