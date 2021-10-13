@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -41,7 +42,7 @@ tests :: IO ()
 tests = quickCheck $ all test [0..63]
 
 test :: Int -> Bool
-test i = hashByteString (uncurry sipHash24 testKey) (testInput i) == (testVectors !! i)
+test i = hashByteString @(SipHash 2 4) testKey (testInput i) == (testVectors !! i)
 
 -- -------------------------------------------------------------------------- --
 -- Test Vectors from https://svn.grid.pub.ro/svn/bhyve-save-restore/trunk/sys/crypto/siphash/siphash_test.c
@@ -76,14 +77,14 @@ test i = hashByteString (uncurry sipHash24 testKey) (testInput i) == (testVector
  */
 -}
 
-testKey :: (Word64, Word64)
-testKey = (bytesToWord64 [0..7], bytesToWord64 [8..15])
+testKey :: SipHashKey
+testKey = SipHashKey (bytesToWord64 [0..7]) (bytesToWord64 [8..15])
 
 testInput :: Int -> B.ByteString
 testInput i = B.pack $ fromIntegral <$> [0..i-1]
 
-testVectors :: [Word64]
-testVectors = bytesToWord64 <$>
+testVectors :: [SipHash 2 4]
+testVectors = SipHash . bytesToWord64 <$>
     [ [ 0x31, 0x0e, 0x0e, 0xdd, 0x47, 0xdb, 0x6f, 0x72 ]
     , [ 0xfd, 0x67, 0xdc, 0x93, 0xc5, 0x39, 0xf8, 0x74 ]
     , [ 0x5a, 0x4f, 0xa9, 0xd9, 0x09, 0x80, 0x6c, 0x0d ]

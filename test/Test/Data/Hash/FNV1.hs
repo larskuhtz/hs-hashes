@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Module: Test.Data.Hash.FNV1
@@ -16,9 +17,12 @@ module Test.Data.Hash.FNV1
 
 import Data.Bifunctor
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Unsafe as B
 import Data.Word
 
 import GHC.Ptr
+
+import System.IO.Unsafe
 
 import Test.QuickCheck
 
@@ -45,10 +49,10 @@ tests64 = all test64 testVectors64
     && all testZero64 zeros64
 
 test64 :: (B.ByteString, Word64) -> Bool
-test64 (b, r) = hashByteString fnv1_64 b == r
+test64 (b, r) = hashByteString @Fnv164Hash b == Fnv164Hash r
 
 testZero64 :: B.ByteString -> Bool
-testZero64 b = hashByteString fnv1_64 b == 0
+testZero64 b = hashByteString @Fnv164Hash b == Fnv164Hash 0
 
 testVectors64 :: [(B.ByteString, Word64)]
 testVectors64 = []
@@ -308,10 +312,10 @@ tests64a = all test64a testVectors64a
     && all testZero64a zeros64a
 
 test64a :: (B.ByteString, Word64) -> Bool
-test64a (b, r) = hashByteString fnv1a_64 b == r
+test64a (b, r) = hashByteString @Fnv1a64Hash b == Fnv1a64Hash r
 
 testZero64a :: B.ByteString -> Bool
-testZero64a b = hashByteString fnv1a_64 b == 0
+testZero64a b = hashByteString @Fnv1a64Hash b == Fnv1a64Hash 0
 
 testVectors64a :: [(B.ByteString, Word64)]
 testVectors64a = []
@@ -335,13 +339,13 @@ tests32 = all test32 testVectors32
     && testZero32 zero32ff
 
 test32 :: (B.ByteString, Word32) -> Bool
-test32 (b, r) = hashByteString fnv1_32 b == r
+test32 (b, r) = hashByteString @Fnv132Hash b == Fnv132Hash r
 
 testVectors32 :: [(B.ByteString, Word32)]
 testVectors32 = []
 
 testZero32 :: B.ByteString -> Bool
-testZero32 b = hashByteString fnv1_32 b == 0
+testZero32 b = hashByteString @Fnv132Hash b == Fnv132Hash 0
 
 -- | Two out of 254 inputs of up to 5 bytes length that result in a
 -- fnv1 32 bit hash of 0.
@@ -371,13 +375,13 @@ tests32a = all test32a testVectors32a
     && testZero32a zero32ffa
 
 test32a :: (B.ByteString, Word32) -> Bool
-test32a (b, r) = hashByteString fnv1a_32 b == r
+test32a (b, r) = hashByteString @Fnv1a32Hash b == Fnv1a32Hash r
 
 testVectors32a :: [(B.ByteString, Word32)]
 testVectors32a = []
 
 testZero32a :: B.ByteString -> Bool
-testZero32a b = hashByteString fnv1a_32 b == 0
+testZero32a b = hashByteString @Fnv1a32Hash b == Fnv1a32Hash 0
 
 -- | All FNV1a 32 bit inputs that result in a hash of 0 up to a length of four
 -- bytes.
@@ -397,8 +401,8 @@ zero32ffa = B.replicate 3039744951 0xff
 -- Primitive FNV1
 
 primitiveFnv1 :: B.ByteString -> Word
-primitiveFnv1 = hashByteString $ \(Ptr addr) n ->
-    fromIntegral <$> fnv1 addr n
+primitiveFnv1 b = unsafeDupablePerformIO $
+    B.unsafeUseAsCStringLen b $ \(Ptr addr, n) -> fromIntegral <$> fnv1 addr n
 {-# INLINE primitiveFnv1 #-}
 
 testsPrim :: Bool
@@ -433,8 +437,8 @@ zerosPrim = error "zerosPrim: unsupported hardware platform"
 -- Primitive FNV1a
 
 primitiveFnv1a :: B.ByteString -> Word
-primitiveFnv1a = hashByteString $ \(Ptr addr) n ->
-    fromIntegral <$> fnv1a addr n
+primitiveFnv1a b = unsafeDupablePerformIO $
+    B.unsafeUseAsCStringLen b $ \(Ptr addr, n) -> fromIntegral <$> fnv1a addr n
 {-# INLINE primitiveFnv1a #-}
 
 testsPrima :: Bool

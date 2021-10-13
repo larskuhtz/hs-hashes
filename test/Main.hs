@@ -12,11 +12,11 @@ module Main
 
 import qualified Test.Data.Hash.FNV1
 import qualified Test.Data.Hash.SipHash
-import qualified Test.Data.Hash.Utils
+import qualified Test.Data.Hash.Class.Pure
 
 main :: IO ()
 main = do
     putStrLn "Test.Data.Hash.FNV1.tests: " >> Test.Data.Hash.FNV1.tests
     putStrLn "Test.Data.Hash.SipHash.tests: " >> Test.Data.Hash.SipHash.tests
-    putStrLn "Test.Data.Hash.Utils:" >> Test.Data.Hash.Utils.tests
+    putStrLn "Test.Data.Hash.Class.Pure:" >> Test.Data.Hash.Class.Pure.tests
 
