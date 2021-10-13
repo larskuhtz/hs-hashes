@@ -402,7 +402,7 @@ zero32ffa = B.replicate 3039744951 0xff
 
 primitiveFnv1 :: B.ByteString -> Word
 primitiveFnv1 b = unsafeDupablePerformIO $
-    B.unsafeUseAsCStringLen b $ \(Ptr addr, n) -> fromIntegral <$> fnv1 addr n
+    B.unsafeUseAsCStringLen b $ \(ptr, n) -> fromIntegral <$> fnv1 (castPtr ptr) n
 {-# INLINE primitiveFnv1 #-}
 
 testsPrim :: Bool
@@ -438,7 +438,7 @@ zerosPrim = error "zerosPrim: unsupported hardware platform"
 
 primitiveFnv1a :: B.ByteString -> Word
 primitiveFnv1a b = unsafeDupablePerformIO $
-    B.unsafeUseAsCStringLen b $ \(Ptr addr, n) -> fromIntegral <$> fnv1a addr n
+    B.unsafeUseAsCStringLen b $ \(ptr, n) -> fromIntegral <$> fnv1a (castPtr ptr) n
 {-# INLINE primitiveFnv1a #-}
 
 testsPrima :: Bool
