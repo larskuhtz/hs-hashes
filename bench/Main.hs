@@ -15,8 +15,6 @@ module Main
 ( main
 ) where
 
-import Control.Monad
-
 import Criterion
 import Criterion.Main
 
@@ -25,12 +23,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Hash as BA
 #endif
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Unsafe as B
 import Data.Word
-
-import GHC.Ptr
-
-import System.IO.Unsafe
 
 import Test.QuickCheck
 
@@ -119,9 +112,9 @@ internalFnv1a b = r
 {-# INLINE internalFnv1a #-}
 
 primitiveFnv1a :: B.ByteString -> Word64
-primitiveFnv1a b = unsafeDupablePerformIO $
-    B.unsafeUseAsCStringLen b $ \(Ptr addr, n) ->
-        fromIntegral <$!> FH.fnv1a addr n
+primitiveFnv1a b = fromIntegral r
+  where
+    FH.Fnv1aHash r = FH.hashByteString @FH.Fnv1aHash b
 {-# INLINE primitiveFnv1a #-}
 
 #ifdef BENCHMARK_MEMORY
