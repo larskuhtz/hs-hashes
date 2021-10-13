@@ -1,4 +1,4 @@
-Haskell implementation of various non-cryptographic hash functions.
+Haskell implementation of various hash functions.
 
 The current version includes
 

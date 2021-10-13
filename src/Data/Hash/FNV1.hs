@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 
 -- |
@@ -16,20 +17,55 @@
 --
 module Data.Hash.FNV1
 (
--- * IO API (64 bit)
+-- * Fnv1 64 bit
+  Fnv164Hash(..)
+, Fnv164Context
+, fnv164Initialize
+, fnv164Update
+, fnv164Finalize
+, fnv164
 
-  fnv1_64
+
+-- * Fnv1a 64 bit
+, Fnv1a64Hash(..)
+, Fnv1a64Context
+, fnv1a64Initialize
+, fnv1a64Update
+, fnv1a64Finalize
+, fnv1a64
+
+-- * Fnv1 32 bit
+, Fnv132Hash(..)
+, Fnv132Context
+, fnv132Initialize
+, fnv132Update
+, fnv132Finalize
+, fnv132
+
+
+-- * Fnv1a 32 bit
+, Fnv1a32Hash(..)
+, Fnv1a32Context
+, fnv1a32Initialize
+, fnv1a32Update
+, fnv1a32Finalize
+, fnv1a32
+
+-- * Low-Level
+-- ** 64 bit
+
+, fnv1_64
 , fnv1_64_
 , fnv1a_64
 , fnv1a_64_
 
--- * 32 bit versions
+-- ** 32 bit
 , fnv1_32
 , fnv1_32_
 , fnv1a_32
 , fnv1a_32_
 
--- * Primitive (host word size)
+-- ** Primitive (host word size)
 , fnv1
 , fnv1_
 , fnv1Primitive
@@ -41,9 +77,9 @@ module Data.Hash.FNV1
 , fnv1aPrimitive_
 
 -- * Utils
-, module Data.Hash.Utils
+, module Data.Hash.Class.Pure
 
--- * Constants
+-- ** Internal Constants
 , fnvPrime
 , fnvPrime32
 , fnvPrime64
@@ -54,6 +90,8 @@ module Data.Hash.FNV1
 
 ) where
 
+import Control.Monad
+
 import Data.Bits
 import Data.Word
 
@@ -61,27 +99,178 @@ import Foreign.Ptr
 import Foreign.Storable
 
 import GHC.Exts
-
 import GHC.IO
 
 -- internal modules
 
-import Data.Hash.Utils
+import Data.Hash.Class.Pure
+
+-- -------------------------------------------------------------------------- --
+-- Fnv1 64 bit
+
+newtype Fnv164Context = Fnv164Context Word64
+
+newtype Fnv164Hash = Fnv164Hash Word64
+    deriving (Show, Eq, Ord)
+
+fnv164Initialize :: Fnv164Context
+fnv164Initialize = Fnv164Context fnvOffsetBasis64
+{-# INLINE fnv164Initialize #-}
+
+fnv164Update :: Fnv164Context -> Ptr Word8 -> Int -> IO Fnv164Context
+fnv164Update (Fnv164Context !ctx) !ptr !n =
+    Fnv164Context <$!> fnv1_64_ ptr n ctx
+{-# INLINE fnv164Update #-}
+
+fnv164Finalize :: Fnv164Context -> Fnv164Hash
+fnv164Finalize (Fnv164Context !ctx) = Fnv164Hash ctx
+{-# INLINE fnv164Finalize #-}
+
+fnv164 :: Ptr Word8 -> Int -> IO Fnv164Hash
+fnv164 !ptr !n = fnv164Finalize <$!> fnv164Update fnv164Initialize ptr n
+{-# INLINE fnv164 #-}
+
+instance IncrementalHash Fnv164Hash where
+    type Context Fnv164Hash = Fnv164Context
+    update = fnv164Update
+    finalize = fnv164Finalize
+
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+instance Hash Fnv164Hash where
+    initialize = fnv164Initialize
+    {-# INLINE initialize #-}
+
+-- -------------------------------------------------------------------------- --
+-- Fnv1a 64 bit
+
+newtype Fnv1a64Context = Fnv1a64Context Word64
+
+newtype Fnv1a64Hash = Fnv1a64Hash Word64
+    deriving (Show, Eq, Ord)
+
+fnv1a64Initialize :: Fnv1a64Context
+fnv1a64Initialize = Fnv1a64Context fnvOffsetBasis64
+{-# INLINE fnv1a64Initialize #-}
+
+fnv1a64Update :: Fnv1a64Context -> Ptr Word8 -> Int -> IO Fnv1a64Context
+fnv1a64Update (Fnv1a64Context !ctx) !ptr !n =
+    Fnv1a64Context <$!> fnv1a_64_ ptr n ctx
+{-# INLINE fnv1a64Update #-}
+
+fnv1a64Finalize :: Fnv1a64Context -> Fnv1a64Hash
+fnv1a64Finalize (Fnv1a64Context !ctx) = Fnv1a64Hash ctx
+{-# INLINE fnv1a64Finalize #-}
+
+fnv1a64 :: Ptr Word8 -> Int -> IO Fnv1a64Hash
+fnv1a64 !ptr !n = fnv1a64Finalize <$!> fnv1a64Update fnv1a64Initialize ptr n
+{-# INLINE fnv1a64 #-}
+
+instance IncrementalHash Fnv1a64Hash where
+    type Context Fnv1a64Hash = Fnv1a64Context
+    update = fnv1a64Update
+    finalize = fnv1a64Finalize
+
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+instance Hash Fnv1a64Hash where
+    initialize = fnv1a64Initialize
+    {-# INLINE initialize #-}
+
+-- -------------------------------------------------------------------------- --
+-- Fnv1 32 bit
+
+newtype Fnv132Context = Fnv132Context Word32
+
+newtype Fnv132Hash = Fnv132Hash Word32
+    deriving (Show, Eq, Ord)
+
+fnv132Initialize :: Fnv132Context
+fnv132Initialize = Fnv132Context fnvOffsetBasis32
+{-# INLINE fnv132Initialize #-}
+
+fnv132Update :: Fnv132Context -> Ptr Word8 -> Int -> IO Fnv132Context
+fnv132Update (Fnv132Context !ctx) !ptr !n =
+    Fnv132Context <$!> fnv1_32_ ptr n ctx
+{-# INLINE fnv132Update #-}
+
+fnv132Finalize :: Fnv132Context -> Fnv132Hash
+fnv132Finalize (Fnv132Context !ctx) = Fnv132Hash ctx
+{-# INLINE fnv132Finalize #-}
+
+fnv132 :: Ptr Word8 -> Int -> IO Fnv132Hash
+fnv132 !ptr !n = fnv132Finalize <$!> fnv132Update fnv132Initialize ptr n
+{-# INLINE fnv132 #-}
+
+instance IncrementalHash Fnv132Hash where
+    type Context Fnv132Hash = Fnv132Context
+    update = fnv132Update
+    finalize = fnv132Finalize
+
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+instance Hash Fnv132Hash where
+    initialize = fnv132Initialize
+    {-# INLINE initialize #-}
+
+-- -------------------------------------------------------------------------- --
+-- Fnv1a 32 bit
+
+newtype Fnv1a32Context = Fnv1a32Context Word32
+
+newtype Fnv1a32Hash = Fnv1a32Hash Word32
+    deriving (Show, Eq, Ord)
+
+fnv1a32Initialize :: Fnv1a32Context
+fnv1a32Initialize = Fnv1a32Context fnvOffsetBasis32
+{-# INLINE fnv1a32Initialize #-}
+
+fnv1a32Update :: Fnv1a32Context -> Ptr Word8 -> Int -> IO Fnv1a32Context
+fnv1a32Update (Fnv1a32Context !ctx) !ptr !n =
+    Fnv1a32Context <$!> fnv1a_32_ ptr n ctx
+{-# INLINE fnv1a32Update #-}
+
+fnv1a32Finalize :: Fnv1a32Context -> Fnv1a32Hash
+fnv1a32Finalize (Fnv1a32Context !ctx) = Fnv1a32Hash ctx
+{-# INLINE fnv1a32Finalize #-}
+
+fnv1a32 :: Ptr Word8 -> Int -> IO Fnv1a32Hash
+fnv1a32 !ptr !n = fnv1a32Finalize <$!> fnv1a32Update fnv1a32Initialize ptr n
+{-# INLINE fnv1a32 #-}
+
+instance IncrementalHash Fnv1a32Hash where
+    type Context Fnv1a32Hash = Fnv1a32Context
+    update = fnv1a32Update
+    finalize = fnv1a32Finalize
+
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+instance Hash Fnv1a32Hash where
+    initialize = fnv1a32Initialize
+    {-# INLINE initialize #-}
 
 -- -------------------------------------------------------------------------- --
 -- Constants
 
 fnvPrime32 :: Word32
 fnvPrime32 = 0x01000193
+{-# INLINE fnvPrime32 #-}
 
 fnvPrime64 :: Word64
 fnvPrime64 = 0x100000001b3
+{-# INLINE fnvPrime64 #-}
 
 fnvOffsetBasis32 :: Word32
 fnvOffsetBasis32 = 0x811c9dc5
+{-# INLINE fnvOffsetBasis32 #-}
 
 fnvOffsetBasis64 :: Word64
 fnvOffsetBasis64 = 0xcbf29ce484222325
+{-# INLINE fnvOffsetBasis64 #-}
 
 fnvPrime :: Word
 #if defined(x86_64_HOST_ARCH)
@@ -91,6 +280,7 @@ fnvPrime = fromIntegral fvnPrime32
 #else
 fnvPrime = error "fnvPrime: unsupported hardware platform"
 #endif
+{-# INLINE fnvPrime #-}
 
 fnvOffsetBasis :: Word
 #if defined(x86_64_HOST_ARCH)
@@ -100,6 +290,7 @@ fnvOffsetBasis = fromIntegral fnvOffsetBasis32
 #else
 fnvOffsetBasis = error "fnvOffsetBasis: unsupported hardware platform"
 #endif
+{-# INLINE fnvOffsetBasis #-}
 
 -- -------------------------------------------------------------------------- --
 -- FNV1 64 bit
@@ -229,10 +420,10 @@ fnv1aPrimitive_ !addr !n !a tok = case loop a 0# tok of
     loop !acc !i !s = case i ==# n of
         1# -> (# s, acc #)
         _ -> case readWord8OffAddr# addr i s of
-            (# s1, w #) -> loop
-                (p `timesWord#` (acc `xor#` word8ToWord# w))
-                (i +# 1#)
-                s1
+            (# s1, w #) ->
+                let !acc' = p `timesWord#` (acc `xor#` word8ToWord# w)
+                    !n' = i +# 1#
+                in loop acc' n' s1
 
     !(W# p) = fnvPrime
 {-# INLINE fnv1aPrimitive_ #-}
@@ -246,4 +437,5 @@ fnv1aPrimitive_ !addr !n !a tok = case loop a 0# tok of
 --
 word8ToWord# :: Word# -> Word#
 word8ToWord# a = a
+{-# INLINE word8ToWord# #-}
 #endif
