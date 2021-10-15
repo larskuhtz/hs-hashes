@@ -51,6 +51,22 @@ module Data.Hash.FNV1
 , fnv1a32Finalize
 , fnv1a32
 
+-- * Fnv1 Host Wordsize
+, Fnv1Hash(..)
+, Fnv1Context
+, fnv1Initialize
+, fnv1Update
+, fnv1Finalize
+, fnv1
+
+-- * Fnv1a Host Wordsize
+, Fnv1aHash(..)
+, Fnv1aContext
+, fnv1aInitialize
+, fnv1aUpdate
+, fnv1aFinalize
+, fnv1a
+
 -- * Low-Level
 -- ** 64 bit
 
@@ -65,14 +81,14 @@ module Data.Hash.FNV1
 , fnv1a_32
 , fnv1a_32_
 
--- ** Primitive (host word size)
-, fnv1
-, fnv1_
+-- ** Host word size
+, fnv1_host
+, fnv1_host_
 , fnv1Primitive
 , fnv1Primitive_
 
-, fnv1a
-, fnv1a_
+, fnv1a_host
+, fnv1a_host_
 , fnv1aPrimitive
 , fnv1aPrimitive_
 
@@ -254,6 +270,80 @@ instance Hash Fnv1a32Hash where
     {-# INLINE initialize #-}
 
 -- -------------------------------------------------------------------------- --
+-- Fnv1 Host Wordsize
+
+newtype Fnv1Context = Fnv1Context Word
+
+newtype Fnv1Hash = Fnv1Hash Word
+    deriving (Show, Eq, Ord)
+
+fnv1Initialize :: Fnv1Context
+fnv1Initialize = Fnv1Context fnvOffsetBasis
+{-# INLINE fnv1Initialize #-}
+
+fnv1Update :: Fnv1Context -> Ptr Word8 -> Int -> IO Fnv1Context
+fnv1Update (Fnv1Context !ctx) !ptr !n =
+    Fnv1Context <$!> fnv1_host_ ptr n ctx
+{-# INLINE fnv1Update #-}
+
+fnv1Finalize :: Fnv1Context -> Fnv1Hash
+fnv1Finalize (Fnv1Context !ctx) = Fnv1Hash ctx
+{-# INLINE fnv1Finalize #-}
+
+fnv1 :: Ptr Word8 -> Int -> IO Fnv1Hash
+fnv1 !ptr !n = fnv1Finalize <$!> fnv1Update fnv1Initialize ptr n
+{-# INLINE fnv1 #-}
+
+instance IncrementalHash Fnv1Hash where
+    type Context Fnv1Hash = Fnv1Context
+    update = fnv1Update
+    finalize = fnv1Finalize
+
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+instance Hash Fnv1Hash where
+    initialize = fnv1Initialize
+    {-# INLINE initialize #-}
+
+-- -------------------------------------------------------------------------- --
+-- Fnv1a Host Wordsize
+
+newtype Fnv1aContext = Fnv1aContext Word
+
+newtype Fnv1aHash = Fnv1aHash Word
+    deriving (Show, Eq, Ord)
+
+fnv1aInitialize :: Fnv1aContext
+fnv1aInitialize = Fnv1aContext fnvOffsetBasis
+{-# INLINE fnv1aInitialize #-}
+
+fnv1aUpdate :: Fnv1aContext -> Ptr Word8 -> Int -> IO Fnv1aContext
+fnv1aUpdate (Fnv1aContext !ctx) !ptr !n =
+    Fnv1aContext <$!> fnv1a_host_ ptr n ctx
+{-# INLINE fnv1aUpdate #-}
+
+fnv1aFinalize :: Fnv1aContext -> Fnv1aHash
+fnv1aFinalize (Fnv1aContext !ctx) = Fnv1aHash ctx
+{-# INLINE fnv1aFinalize #-}
+
+fnv1a :: Ptr Word8 -> Int -> IO Fnv1aHash
+fnv1a !ptr !n = fnv1aFinalize <$!> fnv1aUpdate fnv1aInitialize ptr n
+{-# INLINE fnv1a #-}
+
+instance IncrementalHash Fnv1aHash where
+    type Context Fnv1aHash = Fnv1aContext
+    update = fnv1aUpdate
+    finalize = fnv1aFinalize
+
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+instance Hash Fnv1aHash where
+    initialize = fnv1aInitialize
+    {-# INLINE initialize #-}
+
+-- -------------------------------------------------------------------------- --
 -- Constants
 
 fnvPrime32 :: Word32
@@ -360,19 +450,19 @@ fnv1a_32_ !ptr !n a = loop a 0
 {-# INLINE fnv1a_32_ #-}
 
 -- -------------------------------------------------------------------------- --
--- Primitive (host architecture words)
+-- Host architecture words
 
 -- FNV1
 
-fnv1 :: Addr# -> Int -> IO Word
-fnv1 addr (I# n) = IO $ \s -> case fnv1Primitive addr n s of
+fnv1_host :: Ptr Word8 -> Int -> IO Word
+fnv1_host (Ptr addr) (I# n) = IO $ \s -> case fnv1Primitive addr n s of
     (# s1, w #) -> (# s1, W# w #)
-{-# INlINE fnv1 #-}
+{-# INlINE fnv1_host #-}
 
-fnv1_ :: Addr# -> Int -> Word -> IO Word
-fnv1_ addr (I# n) (W# a) = IO $ \s -> case fnv1Primitive_ addr n a s of
+fnv1_host_ :: Ptr Word8 -> Int -> Word -> IO Word
+fnv1_host_ (Ptr addr) (I# n) (W# a) = IO $ \s -> case fnv1Primitive_ addr n a s of
     (# s1, w #) -> (# s1, W# w #)
-{-# INlINE fnv1_ #-}
+{-# INlINE fnv1_host_ #-}
 
 fnv1Primitive :: Addr# -> Int# -> State# tok -> (# State# tok, Word# #)
 fnv1Primitive !addr !n !tok = fnv1Primitive_ addr n o tok
@@ -397,15 +487,15 @@ fnv1Primitive_ !addr !n !a tok = case loop a 0# tok of
 
 -- FNV1a
 
-fnv1a :: Addr# -> Int -> IO Word
-fnv1a addr (I# n) = IO $ \s -> case fnv1aPrimitive addr n s of
+fnv1a_host :: Ptr Word8 -> Int -> IO Word
+fnv1a_host (Ptr addr) (I# n) = IO $ \s -> case fnv1aPrimitive addr n s of
     (# s1, w #) -> (# s1, W# w #)
-{-# INlINE fnv1a #-}
+{-# INlINE fnv1a_host #-}
 
-fnv1a_ :: Addr# -> Int -> Word -> IO Word
-fnv1a_ addr (I# n) (W# a) = IO $ \s -> case fnv1aPrimitive_ addr n a s of
+fnv1a_host_ :: Ptr Word8 -> Int -> Word -> IO Word
+fnv1a_host_ (Ptr addr) (I# n) (W# a) = IO $ \s -> case fnv1aPrimitive_ addr n a s of
     (# s1, w #) -> (# s1, W# w #)
-{-# INlINE fnv1a_ #-}
+{-# INlINE fnv1a_host_ #-}
 
 fnv1aPrimitive :: Addr# -> Int# -> State# tok -> (# State# tok, Word# #)
 fnv1aPrimitive !addr !n !tok = fnv1aPrimitive_ addr n o tok

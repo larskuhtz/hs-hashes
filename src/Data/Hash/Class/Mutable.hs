@@ -14,6 +14,7 @@
 --
 module Data.Hash.Class.Mutable
 ( Hash(..)
+, IncrementalHash(..)
 
 , hashPtr
 , hashStorable
