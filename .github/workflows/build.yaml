@@ -43,6 +43,11 @@ jobs:
           dist-newstyle
         key: ${{ matrix.os }}-${{ matrix.ghc }}-0-cabal
 
+    - name: Check OpenSSL Version
+      run: |
+        which openssl
+        openssl version
+
     # Local cabal config
     - name: Create local cabal config
       run: |
