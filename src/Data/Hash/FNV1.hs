@@ -42,7 +42,6 @@ module Data.Hash.FNV1
 , fnv132Finalize
 , fnv132
 
-
 -- * Fnv1a 32 bit
 , Fnv1a32Hash(..)
 , Fnv1a32Context
@@ -66,6 +65,9 @@ module Data.Hash.FNV1
 , fnv1aUpdate
 , fnv1aFinalize
 , fnv1a
+
+-- * Utils
+, module Data.Hash.Class.Pure
 
 -- * Low-Level
 -- ** 64 bit
@@ -91,9 +93,6 @@ module Data.Hash.FNV1
 , fnv1a_host_
 , fnv1aPrimitive
 , fnv1aPrimitive_
-
--- * Utils
-, module Data.Hash.Class.Pure
 
 -- ** Internal Constants
 , fnvPrime
@@ -344,6 +343,10 @@ instance Hash Fnv1aHash where
     {-# INLINE initialize #-}
 
 -- -------------------------------------------------------------------------- --
+-- Low Level
+-- -------------------------------------------------------------------------- --
+
+-- -------------------------------------------------------------------------- --
 -- Constants
 
 fnvPrime32 :: Word32
@@ -485,7 +488,8 @@ fnv1Primitive_ !addr !n !a tok = case loop a 0# tok of
     !(W# p) = fnvPrime
 {-# INLINE fnv1Primitive_ #-}
 
--- FNV1a
+-- -------------------------------------------------------------------------- --
+-- Host Wordsize FNV1a
 
 fnv1a_host :: Ptr Word8 -> Int -> IO Word
 fnv1a_host (Ptr addr) (I# n) = IO $ \s -> case fnv1aPrimitive addr n s of

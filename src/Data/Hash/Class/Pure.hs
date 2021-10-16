@@ -29,6 +29,9 @@ module Data.Hash.Class.Pure
 , updateShortByteString
 , updateStorable
 , updateByteArray
+
+-- * Utilities
+, initializeWithSalt
 ) where
 
 import Control.Monad
@@ -79,4 +82,13 @@ hashStorable b = finalize $! updateStorable @a (initialize @a) b
 hashByteArray :: forall a . Hash a => ByteArray# -> a
 hashByteArray b = finalize $! updateByteArray @a (initialize @a) b
 {-# INLINE hashByteArray #-}
+
+-- -------------------------------------------------------------------------- --
+-- Utilities
+
+-- | Utility function to initialize a hash with a salt
+--
+initializeWithSalt :: forall a s . Hash a => Storable s => s -> Context a
+initializeWithSalt = updateStorable @a $ initialize @a
+{-# INLINE initializeWithSalt #-}
 
