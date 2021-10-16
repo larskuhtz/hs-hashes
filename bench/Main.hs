@@ -67,11 +67,9 @@ main = do
 #endif
             ]
         , bgroup "Sha2_256"
-
-#if defined(WITH_OPENSSL)
-            [ sha2_256Bench "openssl" sha2_256Ssl
-#else
             [
+#if defined(WITH_OPENSSL)
+              sha2_256Bench "openssl" sha2_256Ssl
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
             , sha2_256Bench "cryptonite" cryptoniteSha2_256
@@ -79,10 +77,9 @@ main = do
             ]
 
         , bgroup "Sha2_512"
-#if defined(WITH_OPENSSL)
-            [ sha2_512Bench "openssl" sha2_512Ssl
-#else
             [
+#if defined(WITH_OPENSSL)
+              sha2_512Bench "openssl" sha2_512Ssl
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
             , sha2_512Bench "cryptonite" cryptoniteSha2_512
@@ -90,10 +87,9 @@ main = do
             ]
 
         , bgroup "Sha3_256"
-#if defined(WITH_OPENSSL)
-            [ sha3_256Bench "openssl" sha3_256Ssl
-#else
             [
+#if defined(WITH_OPENSSL)
+              sha3_256Bench "openssl" sha3_256Ssl
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
             , sha3_256Bench "cryptonite" cryptoniteSha3_256
@@ -101,10 +97,9 @@ main = do
             ]
 
         , bgroup "Sha3_512"
-#if defined(WITH_OPENSSL)
-            [ sha3_512Bench "openssl" sha3_512Ssl
-#else
             [
+#if defined(WITH_OPENSSL)
+              sha3_512Bench "openssl" sha3_512Ssl
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
             , sha3_512Bench "cryptonite" cryptoniteSha3_512
@@ -112,10 +107,9 @@ main = do
             ]
 
         , bgroup "keccak256"
-#if defined(WITH_OPENSSL)
-            [ keccakBench "openssl" keccak256Ssl
-#else
             [
+#if defined(WITH_OPENSSL)
+              keccakBench "openssl" keccak256Ssl
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
             , keccakBench "cryptonite" cryptoniteKeccak256
@@ -123,14 +117,20 @@ main = do
             ]
 
         , bgroup "blake2s256"
-            [ blake2s256Bench "openssl" blake2s256Ssl
+            [
+#if defined(WITH_OPENSSL)
+              blake2s256Bench "openssl" blake2s256Ssl
+#endif
 #if defined(BENCHMARK_CRYPTONITE)
             , blake2s256Bench "cryptonite" cryptoniteBlake2s256
 #endif
             ]
 
         , bgroup "blake2b512"
-            [ blake2b512Bench "openssl" blake2b512Ssl
+            [
+#if defined(WITH_OPENSSL)
+              blake2b512Bench "openssl" blake2b512Ssl
+#endif
 #if defined(BENCHMARK_CRYPTONITE)
             , blake2b512Bench "cryptonite" cryptoniteBlake2b512
 #endif
