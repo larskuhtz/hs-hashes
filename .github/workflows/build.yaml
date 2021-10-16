@@ -20,6 +20,7 @@ jobs:
         - 'ubuntu-20.04'
         - 'macOS-latest'
         # - 'windows-latest' # windows builds generally work but are flaky on the github runners
+        flags: ['', '-ftest-cryptonite -fbenchmark-cryptonite -fwith-openssl']
 
     steps:
 
@@ -47,18 +48,18 @@ jobs:
       run: cabal update
     - name: Configure build
       run: |
-        cabal build all --dry-run
+        cabal build all --dry-run ${{ matrix.flags }}
         cabal freeze
     - name: Install build dependencies
-      run: cabal build --only-dependencies
+      run: cabal build --only-dependencies ${{ matrix.flags }}
     - name: Build library
-      run: cabal build
+      run: cabal build ${{ matrix.flags }}
 
     # Tests
     - name: Run Tests
-      run: cabal test test:tests
+      run: cabal test test:tests ${{ matrix.flags }}
 
     # Benchmarks
     - name: Run Benchmarks
-      run: cabal bench bench:benchmarks
+      run: cabal bench bench:benchmarks ${{ matrix.flags }}
 
