@@ -4,5 +4,4 @@ write-ghc-environment-files: always
 
 package hashes
     optimization: 2
-    ghc-options: -Wunused-packages
     ghc-options: -Wall
