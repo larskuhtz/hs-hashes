@@ -52,89 +52,74 @@ import qualified Data.Hash.Keccak as K
 main :: IO ()
 main = do
     defaultMain
-        [ bgroup "sipHash"
-            [ sipBench "internal" (internalSipHash 17 17)
+        [ bgroup "sipHash" $ []
+            <> [sipBench "internal" (internalSipHash 17 17)]
 #if defined(BENCHMARK_CRYPTONITE)
-            , sipBench "memory" (memorySipHash 17 17)
+            <> [sipBench "memory" (memorySipHash 17 17)]
 #endif
-            ]
 
-        , bgroup "fnv1aHash"
-            [ fnv1aBench "internal" internalFnv1a
-            , fnv1aBench "primitive" primitiveFnv1a
+        , bgroup "fnv1aHash" $ []
+            <> [fnv1aBench "internal" internalFnv1a]
+            <> [fnv1aBench "primitive" primitiveFnv1a]
 #if defined(BENCHMARK_CRYPTONITE)
-            , fnv1aBench "memory" memoryFnv1a
+            <> [fnv1aBench "memory" memoryFnv1a]
 #endif
-            ]
-        , bgroup "Sha2_256"
-            [
-#if defined(WITH_OPENSSL)
-              sha2_256Bench "openssl" sha2_256Ssl
-#endif
-#if defined(BENCHMARK_CRYPTONITE)
-            , sha2_256Bench "cryptonite" cryptoniteSha2_256
-#endif
-            ]
 
-        , bgroup "Sha2_512"
-            [
+        , bgroup "Sha2_256" $ []
 #if defined(WITH_OPENSSL)
-              sha2_512Bench "openssl" sha2_512Ssl
+            <> [sha2_256Bench "openssl" sha2_256Ssl]
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
-            , sha2_512Bench "cryptonite" cryptoniteSha2_512
+            <> [sha2_256Bench "cryptonite" cryptoniteSha2_256]
 #endif
-            ]
 
-        , bgroup "Sha3_256"
-            [
+        , bgroup "Sha2_512" $ []
 #if defined(WITH_OPENSSL)
-              sha3_256Bench "openssl" sha3_256Ssl
+            <> [sha2_512Bench "openssl" sha2_512Ssl]
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
-            , sha3_256Bench "cryptonite" cryptoniteSha3_256
+            <> [sha2_512Bench "cryptonite" cryptoniteSha2_512]
 #endif
-            ]
 
-        , bgroup "Sha3_512"
-            [
+        , bgroup "Sha3_256" $ []
 #if defined(WITH_OPENSSL)
-              sha3_512Bench "openssl" sha3_512Ssl
+            <> [sha3_256Bench "openssl" sha3_256Ssl]
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
-            , sha3_512Bench "cryptonite" cryptoniteSha3_512
+            <> [sha3_256Bench "cryptonite" cryptoniteSha3_256]
 #endif
-            ]
 
-        , bgroup "keccak256"
-            [
+        , bgroup "Sha3_512" $ []
 #if defined(WITH_OPENSSL)
-              keccakBench "openssl" keccak256Ssl
+            <> [sha3_512Bench "openssl" sha3_512Ssl]
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
-            , keccakBench "cryptonite" cryptoniteKeccak256
+            <> [sha3_512Bench "cryptonite" cryptoniteSha3_512]
 #endif
-            ]
 
-        , bgroup "blake2s256"
-            [
+        , bgroup "keccak256" $ []
 #if defined(WITH_OPENSSL)
-              blake2s256Bench "openssl" blake2s256Ssl
+            <> [keccakBench "openssl" keccak256Ssl]
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
-            , blake2s256Bench "cryptonite" cryptoniteBlake2s256
+            <> [keccakBench "cryptonite" cryptoniteKeccak256]
 #endif
-            ]
 
-        , bgroup "blake2b512"
-            [
+        , bgroup "blake2s256" $ []
 #if defined(WITH_OPENSSL)
-              blake2b512Bench "openssl" blake2b512Ssl
+            <> [blake2s256Bench "openssl" blake2s256Ssl]
 #endif
 #if defined(BENCHMARK_CRYPTONITE)
-            , blake2b512Bench "cryptonite" cryptoniteBlake2b512
+            <> [blake2s256Bench "cryptonite" cryptoniteBlake2s256]
 #endif
-            ]
+
+        , bgroup "blake2b512" $ []
+#if defined(WITH_OPENSSL)
+            <> [ blake2b512Bench "openssl" blake2b512Ssl ]
+#endif
+#if defined(BENCHMARK_CRYPTONITE)
+            <> [ blake2b512Bench "cryptonite" cryptoniteBlake2b512 ]
+#endif
         ]
 
 -- -------------------------------------------------------------------------- --
