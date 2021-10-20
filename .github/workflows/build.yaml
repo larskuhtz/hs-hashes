@@ -19,7 +19,8 @@ jobs:
         - 'ubuntu-18.04'
         - 'ubuntu-20.04'
         - 'macOS-latest'
-        # - 'windows-latest' # windows builds generally work but are flaky on the github runners
+        cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
+        openssl: [ '+with-openssl', '-with-openssl' ]
 
     steps:
 
@@ -41,6 +42,22 @@ jobs:
           ~/.cabal/store
           dist-newstyle
         key: ${{ matrix.os }}-${{ matrix.ghc }}-0-cabal
+
+    - name: Check OpenSSL Version
+      run: |
+        which openssl
+        openssl version
+
+    # Local cabal config
+    - name: Create local cabal config
+      run: |
+        cat > cabal.project.local <<EOF
+        package hashes
+          documentation: True
+          benchmarks: True
+          tests: True
+          flags: ${{ matrix.openssl }} ${{ matrix.cryptonite }}
+        EOF
 
     # Build
     - name: Update package database
