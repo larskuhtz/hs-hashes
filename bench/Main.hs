@@ -316,7 +316,7 @@ blake2s256Bench l f = bgroup l $ go <$> benchStrings
 keccak256Ssl :: B.ByteString -> BS.ShortByteString
 keccak256Ssl b = r
   where
-    K.Keccak256Hash  r = K.hashByteString @K.Keccak256Hash b
+    K.Keccak256  r = K.hashByteString @K.Keccak256 b
 {-# INLINE keccak256Ssl #-}
 #endif
 

@@ -23,13 +23,15 @@ module Cryptonite
 
 import Control.Monad
 
+#if defined(WITH_OPENSSL)
 import qualified Crypto.Hash as C
-
 import qualified Data.ByteArray as BA
-import qualified Data.ByteArray.Hash as BA
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Short as BS
 import Data.Coerce
+#endif
+
+import qualified Data.ByteArray.Hash as BA
+import qualified Data.ByteString as B
 import Data.Word
 
 import Test.QuickCheck
@@ -41,6 +43,7 @@ import Data.Hash.SHA2
 import Data.Hash.SHA3
 import Data.Hash.Blake2
 import Data.Hash.Keccak
+import qualified Data.Hash.Class.Mutable as M
 #endif
 
 import qualified Data.Hash.SipHash as SH
@@ -54,19 +57,20 @@ run = forM_ tests $ \(n, t) -> do
     putStrLn $ "cryptonite compatiblity for " <> n
     quickCheck t
 
+#if defined(WITH_OPENSSL)
 prop_eq
     :: forall alg calg
     . Coercible BS.ShortByteString alg
-    -- => BA.ByteArrayAccess (C.Digest calg)
     => C.HashAlgorithm calg
-    => Hash alg
+    => M.Hash alg
     => [Word8]
     -> Property
 prop_eq b = internal === cryptonite
   where
     bytes = B.pack b
     cryptonite = BS.toShort $ BA.convert $ C.hash @_ @calg bytes
-    internal = coerce $ hashByteString @alg bytes
+    internal = coerce $ M.hashByteString @alg bytes
+#endif
 
 -- -------------------------------------------------------------------------- --
 -- SipHash
@@ -152,7 +156,7 @@ tests =
     , ("SHA3_512", property $ prop_eq @Sha3_512 @C.SHA3_512)
     , ("Blake2s256", property $ prop_eq @Blake2s256 @C.Blake2s_256)
     , ("Blake2b512", property $ prop_eq @Blake2b512 @C.Blake2b_512)
-    , ("Keccak256", property $ prop_eq @Keccak256Hash @C.Keccak_256)
+    , ("Keccak256", property $ prop_eq @Keccak256 @C.Keccak_256)
 #endif
     ]
 

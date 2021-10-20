@@ -23,5 +23,5 @@ import Text.Printf
 newtype B16ShortByteString = B16ShortByteString BS.ShortByteString
 
 instance Show B16ShortByteString where
-    show (B16ShortByteString b) = concatMap (printf "0.2%x") $ BS.unpack b
+    show (B16ShortByteString b) = concatMap (printf "%0.2x") $ BS.unpack b
 

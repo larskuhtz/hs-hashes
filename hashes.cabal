@@ -18,6 +18,9 @@ tested-with:
 extra-source-files:
     README.md
     CHANGELOG.md
+    cbits/keccak.h
+    cbits/keccak.c
+    cbits/keccak-example.c
 
 source-repository head
     type: git
@@ -47,6 +50,9 @@ flag openssl-use-pkg-config
 
 common openssl-common
     if flag(with-openssl)
+        c-sources:
+            cbits/keccak.h
+            cbits/keccak.c
         cpp-options: -DWITH_OPENSSL=1
         include-dirs:
             /usr/local/opt/openssl@3/include
