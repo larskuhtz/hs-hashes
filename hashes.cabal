@@ -91,7 +91,6 @@ library
     ghc-options:
         -mbmi2
         -msse4.2
-        -O2
     build-depends:
         , base >=4.11 && <5
         , bytestring >=0.10
@@ -139,7 +138,6 @@ benchmark benchmarks
         -with-rtsopts=-N
         -mbmi2
         -msse4.2
-        -O2
     build-depends:
         -- internal
         , hashes
