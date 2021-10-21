@@ -8,6 +8,7 @@
 --
 module Main
 ( main
+, tests
 ) where
 
 import qualified Test.Data.Hash.FNV1
@@ -15,15 +16,21 @@ import qualified Test.Data.Hash.SipHash
 import qualified Test.Data.Hash.Class.Pure
 
 #if defined(TEST_CRYPTONITE)
-import Cryptonite
+import qualified Cryptonite
 #endif
 
+import Test.Syd
+
 main :: IO ()
-main = do
-    putStrLn "Test.Data.Hash.FNV1.tests: " >> Test.Data.Hash.FNV1.tests
-    putStrLn "Test.Data.Hash.SipHash.tests: " >> Test.Data.Hash.SipHash.tests
-    putStrLn "Test.Data.Hash.Class.Pure:" >> Test.Data.Hash.Class.Pure.tests
+main = sydTest tests
+
+tests :: Spec
+tests = do
+    describe "Test.Data.Hash.FNV1.tests" Test.Data.Hash.FNV1.tests
+    describe "Test.Data.Hash.SipHash.tests" Test.Data.Hash.SipHash.tests
+    describe "Test.Data.Hash.Class.Pure" Test.Data.Hash.Class.Pure.tests
+
 #if defined(TEST_CRYPTONITE)
-    run
+    describe "Cryptonite" Cryptonite.tests
 #endif
 

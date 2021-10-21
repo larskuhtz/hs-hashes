@@ -35,6 +35,7 @@ import qualified Data.ByteString as B
 import Data.Word
 
 import Test.QuickCheck
+import Test.Syd
 
 -- internal modules
 
@@ -53,9 +54,12 @@ import qualified Data.Hash.FNV1 as FH
 -- OpenSSL
 
 run :: IO ()
-run = forM_ tests $ \(n, t) -> do
+run = forM_ properties $ \(n, t) -> do
     putStrLn $ "cryptonite compatiblity for " <> n
     quickCheck t
+
+tests :: Spec
+tests = mapM_ (uncurry prop) properties
 
 #if defined(WITH_OPENSSL)
 prop_eq
@@ -134,8 +138,8 @@ prop_eq_fnv1aHost b = fromIntegral internal64 === internalHost
 -- -------------------------------------------------------------------------- --
 -- Tests
 
-tests :: [(String, Property)]
-tests =
+properties :: [(String, Property)]
+properties =
     [ ("prop_eq_sip", property prop_eq_sip)
     , ("prop_eq_fnv132", property prop_eq_fnv132)
     , ("prop_eq_fnv164", property prop_eq_fnv164)

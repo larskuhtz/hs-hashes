@@ -16,6 +16,7 @@
 --
 module Test.Data.Hash.Class.Pure
 ( tests
+, run
 ) where
 
 import Data.Bits
@@ -32,6 +33,7 @@ import GHC.IO
 import GHC.Word
 
 import Test.QuickCheck
+import Test.Syd
 
 -- internal modules
 
@@ -40,8 +42,17 @@ import Data.Hash.Class.Pure.Salted
 -- -------------------------------------------------------------------------- --
 --
 
-tests :: IO ()
+tests :: Spec
 tests = do
+    prop "prop_hashByteString" prop_hashByteString
+    prop "prop_hashByteStringLazy" prop_hashByteStringLazy
+    prop "prop_hashShortByteString" prop_hashShortByteString
+    prop "prop_hashStorable" prop_hashStorable
+    prop "prop_hashPtr" prop_hashPtr
+    prop "prop_hashByteArray" prop_hashByteArray
+
+run :: IO ()
+run = do
     putStrLn "prop_hashByteString"
     quickCheck prop_hashByteString
     putStrLn "prop_hashByteStringLazy"

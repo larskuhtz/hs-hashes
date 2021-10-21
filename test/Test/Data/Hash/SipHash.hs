@@ -13,6 +13,7 @@
 --
 module Test.Data.Hash.SipHash
 ( tests
+, run
 ) where
 
 import qualified Data.ByteString as B
@@ -21,7 +22,7 @@ import Foreign
 
 import System.IO.Unsafe
 
-import Test.QuickCheck
+import Test.Syd
 
 -- internal modules
 
@@ -37,12 +38,15 @@ bytesToWord64 l = unsafePerformIO $
 -- -------------------------------------------------------------------------- --
 -- Tests
 
--- internal sip hash implementation
-tests :: IO ()
-tests = quickCheck $ all test [0..63]
+tests :: Spec
+tests = describe "SipHash-2-4 Test Vectors" $ do
+    mapM_ (\i -> it (show i) (test i)) [0..length testVectors - 1]
 
 test :: Int -> Bool
 test i = hashByteString @(SipHash 2 4) testKey (testInput i) == (testVectors !! i)
+
+run :: Bool
+run = all test [0..length testVectors - 1]
 
 -- -------------------------------------------------------------------------- --
 -- Test Vectors from https://svn.grid.pub.ro/svn/bhyve-save-restore/trunk/sys/crypto/siphash/siphash_test.c

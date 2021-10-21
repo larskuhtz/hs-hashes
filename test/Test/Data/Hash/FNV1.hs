@@ -14,6 +14,7 @@
 --
 module Test.Data.Hash.FNV1
 ( tests
+, run
 ) where
 
 import Data.Bifunctor
@@ -25,7 +26,7 @@ import GHC.Ptr
 
 import System.IO.Unsafe
 
-import Test.QuickCheck
+import Test.Syd
 
 -- internal modules
 
@@ -34,20 +35,36 @@ import Data.Hash.FNV1
 -- -------------------------------------------------------------------------- --
 -- All tests
 
-tests :: IO ()
-tests = quickCheck $ tests64
-    && tests32
-    && tests64a
-    && tests32a
-    && testsPrim
-    && testsPrima
+run :: Bool
+run = run64
+    && run32
+    && run64a
+    && run32a
+    && runPrim
+    && runPrima
+
+tests :: Spec
+tests = do
+    describe "FNV1 64 bit" tests64
+    describe "FNV1 32 bit" tests32
+    describe "FNV1a 64 bit" tests64a
+    describe "FNV1a 32 bit" tests32a
+    describe "FNV1 host word size" testsPrim
+    describe "FNV1a host word size" testsPrima
 
 -- -------------------------------------------------------------------------- --
 -- 64 bit FNV1
 
-tests64 :: Bool
-tests64 = all test64 testVectors64
+run64 :: Bool
+run64 = all test64 testVectors64
     && all testZero64 zeros64
+
+tests64 :: Spec
+tests64 = do
+    describe "Test Vectors" $ do
+        mapM_ (\x -> it (show x) (test64 x)) testVectors64
+    describe "Inputs up to 9 bytes that hash to 0" $ do
+        mapM_ (\x -> it (show x) (testZero64 x)) zeros64
 
 test64 :: (B.ByteString, Word64) -> Bool
 test64 (b, r) = hashByteString @Fnv164Hash b == Fnv164Hash r
@@ -308,9 +325,16 @@ zeros64 = B.pack <$>
 -- -------------------------------------------------------------------------- --
 -- 64 bit FNV1a
 
-tests64a :: Bool
-tests64a = all test64a testVectors64a
+run64a :: Bool
+run64a = all test64a testVectors64a
     && all testZero64a zeros64a
+
+tests64a :: Spec
+tests64a = do
+    describe "Test Vectors" $ do
+        mapM_ (\x -> it (show x) (test64a x)) testVectors64a
+    describe "Inputs up to 8 bytes that hash to 0" $ do
+        mapM_ (\x -> it (show x) (testZero64a x)) zeros64a
 
 test64a :: (B.ByteString, Word64) -> Bool
 test64a (b, r) = hashByteString @Fnv1a64Hash b == Fnv1a64Hash r
@@ -334,10 +358,17 @@ zeros64a = B.pack <$>
 -- -------------------------------------------------------------------------- --
 -- 32 bit FNV1
 
-tests32 :: Bool
-tests32 = all test32 testVectors32
+run32 :: Bool
+run32 = all test32 testVectors32
     && all testZero32 zeros32
     && testZero32 zero32ff
+
+tests32 :: Spec
+tests32 = do
+    describe "Test Vectors" $ do
+        mapM_ (\x -> it (show x) (test32 x)) testVectors32
+    describe "Two out of 254 inputs of up to 5 bytes that hash to 0" $ do
+        mapM_ (\x -> it (show x) (testZero32 x)) zeros32
 
 test32 :: (B.ByteString, Word32) -> Bool
 test32 (b, r) = hashByteString @Fnv132Hash b == Fnv132Hash r
@@ -370,10 +401,17 @@ zero32ff = B.replicate 428876705 0xff
 -- -------------------------------------------------------------------------- --
 -- 32 bit FNV1a
 
-tests32a :: Bool
-tests32a = all test32a testVectors32a
+run32a :: Bool
+run32a = all test32a testVectors32a
     && all testZero32a zeros32a
     && testZero32a zero32ffa
+
+tests32a :: Spec
+tests32a = do
+    describe "Test Vectors" $ do
+        mapM_ (\x -> it (show x) (test32a x)) testVectors32a
+    describe "Inputs up to 4 bytes that hash to 0" $ do
+        mapM_ (\x -> it (show x) (testZero32a x)) zeros32a
 
 test32a :: (B.ByteString, Word32) -> Bool
 test32a (b, r) = hashByteString @Fnv1a32Hash b == Fnv1a32Hash r
@@ -406,9 +444,16 @@ primitiveFnv1 b = unsafeDupablePerformIO $
     B.unsafeUseAsCStringLen b $ \(addr, n) -> fnv1_host (castPtr addr) n
 {-# INLINE primitiveFnv1 #-}
 
-testsPrim :: Bool
-testsPrim = all testPrim testVectorsPrim
+runPrim :: Bool
+runPrim = all testPrim testVectorsPrim
     && all testZeroPrim zerosPrim
+
+testsPrim :: Spec
+testsPrim = do
+    describe "Test Vectors" $ do
+        mapM_ (\x -> it (show x) (testPrim x)) testVectorsPrim
+    describe "Inputs up to 9 bytes that hash to 0" $ do
+        mapM_ (\x -> it (show x) (testZeroPrim x)) zerosPrim
 
 testPrim :: (B.ByteString, Word) -> Bool
 testPrim (b, r) = primitiveFnv1 b == r
@@ -442,9 +487,16 @@ primitiveFnv1a b = unsafeDupablePerformIO $
     B.unsafeUseAsCStringLen b $ \(addr, n) -> fnv1a_host (castPtr addr) n
 {-# INLINE primitiveFnv1a #-}
 
-testsPrima :: Bool
-testsPrima = all testPrima testVectorsPrima
+runPrima :: Bool
+runPrima = all testPrima testVectorsPrima
     && all testZeroPrima zerosPrima
+
+testsPrima :: Spec
+testsPrima = do
+    describe "Test Vectors" $ do
+        mapM_ (\x -> it (show x) (testPrima x)) testVectorsPrima
+    describe "Inputs up to 8 bytes that hash to 0" $ do
+        mapM_ (\x -> it (show x) (testZeroPrima x)) zerosPrima
 
 testPrima :: (B.ByteString, Word) -> Bool
 testPrima (b, r) = primitiveFnv1a b == r
