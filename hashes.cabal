@@ -79,6 +79,7 @@ library
         Data.Hash.Class.Pure.Internal
         Data.Hash.Class.Pure.Salted
         Data.Hash.FNV1
+        Data.Hash.FNV1.Salted
         Data.Hash.Internal.Utils
         Data.Hash.SipHash
     if flag(with-openssl)
