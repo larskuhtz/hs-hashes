@@ -37,5 +37,5 @@ a location for Cabal/GHC can find it.
 *   BLAKE2
     *   BLAKE2s256
     *   BLAKE2b512
-*   KECCAK-256 (cf. comment in [Data.Hash.Keccak](https://github.com/larskuhtz/hs-hashes/blob/main/src/Data/Hash/Keccak.hs)
+*   KECCAK-256 (cf. comment in [Data.Hash.Keccak](https://github.com/larskuhtz/hs-hashes/blob/main/src/Data/Hash/Keccak.hs))
 
