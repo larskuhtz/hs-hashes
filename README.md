@@ -1,8 +1,8 @@
 Haskell implementation of various hash functions.
 
-** Available Hash functions
+## Available Hash functions
 
-*** Native Haskell Implementations
+### Native Haskell Implementations
 
 *   SipHash
     *   SipHash-2-4
@@ -12,7 +12,7 @@ Haskell implementation of various hash functions.
 *   FNV1 (64 bit, 32 bit, and host word size)
 *   FNV1a (64 bit, 32 bit, and host word size)
 
-** Linked from OpenSSL
+## Linked from OpenSSL
 
 The following hash functions are available with the package is build with
 `-f+with-openssl`, which is the default.
