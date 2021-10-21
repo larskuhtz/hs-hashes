@@ -58,7 +58,7 @@ import Data.Hash.Class.Pure.Salted
 -- -------------------------------------------------------------------------- --
 -- SipHash
 
--- | SipHash, with recommended default parameters of c=2 and c=4.
+-- | SipHash, with recommended default parameters of c=2 and d=4.
 --
 -- The first and second argument is the 128 bit key, represented as two 64 bit
 -- words.
