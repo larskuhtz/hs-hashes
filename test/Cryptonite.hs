@@ -161,6 +161,7 @@ properties =
     , ("Blake2s256", property $ prop_eq @Blake2s256 @C.Blake2s_256)
     , ("Blake2b512", property $ prop_eq @Blake2b512 @C.Blake2b_512)
     , ("Keccak256", property $ prop_eq @Keccak256 @C.Keccak_256)
+    , ("Keccak512", property $ prop_eq @Keccak512 @C.Keccak_512)
 #endif
     ]
 

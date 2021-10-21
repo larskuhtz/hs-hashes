@@ -31,6 +31,7 @@ module Data.Hash.Keccak
 -- This version of Keccak-256 is used by the Ethereum project.
 
   Keccak256(..)
+, Keccak512(..)
 , module Data.Hash.Class.Mutable
 ) where
 
