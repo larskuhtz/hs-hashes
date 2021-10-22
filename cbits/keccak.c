@@ -35,10 +35,6 @@ finally:
 /* *************************************************************************** */
 /* KECCAK-256 for OpenSSL 3.0 */
 
-typedef struct keccak1600_ctx_st KECCAK1600_CTX;
-typedef KECCAK1600_CTX KECCAK256_CTX;
-typedef KECCAK1600_CTX KECCAK512_CTX;
-
 extern const OSSL_DISPATCH ossl_sha3_256_functions[];
 extern const OSSL_DISPATCH ossl_sha3_512_functions[];
 extern int ossl_sha3_init(KECCAK1600_CTX *ctx, unsigned char pad, size_t bitlen);
@@ -142,9 +138,6 @@ void keccak512_freectx(KECCAK512_CTX *ctx)
 //     unsigned char buf[KECCAK1600_WIDTH / 8 - 32];
 //     unsigned char pad;
 // };
-
-typedef EVP_MD_CTX KECCAK256_CTX;
-typedef EVP_MD_CTX KECCAK512_CTX;
 
 KECCAK256_CTX *keccak256_newctx()
 {
