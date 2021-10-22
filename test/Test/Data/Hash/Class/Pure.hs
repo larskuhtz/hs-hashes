@@ -85,9 +85,10 @@ prop_hashStorable :: Word64 -> Property
 prop_hashStorable b = word8sToWord64 (_getTestHash $ hashStorable @TestHash () b) === b
 
 prop_hashPtr :: [Word8] -> Property
-prop_hashPtr b = unsafeDupablePerformIO $
-    B.unsafeUseAsCStringLen (B.pack b) $ \(ptr, len) -> do
-        return $ unsafeDupablePerformIO (hashPtr @TestHash () (castPtr ptr) len) === TestHash b
+prop_hashPtr b = ioProperty $
+    B.unsafeUseAsCStringLen (B.pack b) $ \(!ptr, !len) -> do
+        !r <- hashPtr @TestHash () (castPtr ptr) len
+        return $! r === TestHash b
 
 prop_hashByteString :: [Word8] -> Property
 prop_hashByteString b = hashByteString @TestHash () (B.pack b) === TestHash b
