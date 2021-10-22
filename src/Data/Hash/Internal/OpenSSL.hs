@@ -65,6 +65,7 @@ module Data.Hash.Internal.OpenSSL
 -- $keccak
 
 , Keccak256(..)
+, Keccak512(..)
 
 -- ** Blake2
 --
@@ -365,6 +366,8 @@ instance OpenSslDigest Shake256 where algorithm = c_evp_shake256
 --
 -- For details see the file cbits/keccak.c.
 
+-- KECCAK-256
+
 newtype Keccak256 = Keccak256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show) via B16ShortByteString
@@ -410,6 +413,57 @@ instance Hash Keccak256 where
         Ctx ctx <- newKeccak256Ctx
         r <- withForeignPtr ctx $ \ptr ->
             c_keccak256_init ptr
+        unless r $ throw $ OpenSslException "digest initialization failed"
+        return $ Ctx ctx
+    {-# INLINE initialize #-}
+
+-- KECCAK-512
+
+newtype Keccak512 = Keccak512 BS.ShortByteString
+    deriving (Eq, Ord)
+    deriving (Show) via B16ShortByteString
+
+foreign import ccall unsafe "keccak.h keccak512_newctx"
+    c_keccak512_newctx :: IO (Ptr ctx)
+
+foreign import ccall unsafe "keccak.h keccak512_init"
+    c_keccak512_init :: Ptr ctx -> IO Bool
+
+foreign import ccall unsafe "keccak.h keccak512_update"
+    c_keccak512_update :: Ptr ctx -> Ptr Word8 -> Int -> IO Bool
+
+foreign import ccall unsafe "keccak.h keccak512_final"
+    c_keccak512_final :: Ptr ctx -> Ptr Word8 -> IO Bool
+
+foreign import ccall unsafe "keccak.h &keccak512_freectx"
+    c_keccak512_freectx_ptr :: FunPtr (Ptr ctx -> IO ())
+
+instance IncrementalHash Keccak512 where
+    type Context Keccak512 = Ctx Keccak512
+    update (Ctx ctx) ptr n = withForeignPtr ctx $ \cptr -> do
+        r <- c_keccak512_update cptr ptr n
+        unless r $ throw $ OpenSslException "digest update failed"
+    finalize (Ctx ctx) = withForeignPtr ctx $ \cptr -> do
+        allocaBytes 64 $ \dptr -> do
+            r <- c_keccak512_final cptr dptr
+            unless r $ throw $ OpenSslException "digest finalization failed"
+            Keccak512 <$> BS.packCStringLen (castPtr dptr, 64)
+    {-# INLINE update #-}
+    {-# INLINE finalize #-}
+
+
+newKeccak512Ctx :: IO (Ctx Keccak512)
+newKeccak512Ctx = fmap Ctx $ mask_ $ do
+    ptr <- c_keccak512_newctx
+    when (ptr == nullPtr) $ throw $ OpenSslException "failed to initialize context"
+    newForeignPtr c_keccak512_freectx_ptr ptr
+{-# INLINE newKeccak512Ctx #-}
+
+instance Hash Keccak512 where
+    initialize = do
+        Ctx ctx <- newKeccak512Ctx
+        r <- withForeignPtr ctx $ \ptr ->
+            c_keccak512_init ptr
         unless r $ throw $ OpenSslException "digest initialization failed"
         return $ Ctx ctx
     {-# INLINE initialize #-}
