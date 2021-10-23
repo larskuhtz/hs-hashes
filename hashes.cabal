@@ -54,14 +54,6 @@ common openssl-common
             cbits/keccak.h
             cbits/keccak.c
         cpp-options: -DWITH_OPENSSL=1
-        include-dirs:
-            /usr/local/opt/openssl@3/include
-            /usr/local/opt/openssl/include
-            /opt/local/include
-        extra-lib-dirs:
-            /usr/local/opt/openssl@3/lib/
-            /usr/local/opt/openssl/lib/
-            /opt/local/lib
         if flag(openssl-use-pkg-config)
             pkgconfig-depends: libcrypto
         else
