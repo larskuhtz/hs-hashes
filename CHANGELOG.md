@@ -1,5 +1,9 @@
 # Revision history for the hashes package
 
+## 0.2.1.1 -- 2021-10-23
+
+*   Fixes for building with GHC-9.2
+
 ## 0.2.1.0 -- 2021-10-22
 
 *   Add OpenSSL based implementation of Keccak-512.
