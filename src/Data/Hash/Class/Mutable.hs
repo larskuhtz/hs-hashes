@@ -64,36 +64,36 @@ hashPtr p n = do
 
 hashByteString :: forall a . Hash a => B.ByteString -> a
 hashByteString b = unsafeDupablePerformIO $ do
-        ctx <- initialize @a
-        updateByteString @a ctx b
-        finalize ctx
+    ctx <- initialize @a
+    updateByteString @a ctx b
+    finalize ctx
 {-# INLINE hashByteString #-}
 
 hashByteStringLazy :: forall a . Hash a => BL.ByteString -> a
 hashByteStringLazy b = unsafeDupablePerformIO $ do
-        ctx <- initialize @a
-        updateByteStringLazy @a ctx b
-        finalize ctx
+    ctx <- initialize @a
+    updateByteStringLazy @a ctx b
+    finalize ctx
 {-# INLINE hashByteStringLazy #-}
 
 hashShortByteString :: forall a . Hash a => BS.ShortByteString -> IO a
 hashShortByteString b = do
-        ctx <- initialize @a
-        updateShortByteString @a ctx b
-        finalize ctx
+    ctx <- initialize @a
+    updateShortByteString @a ctx b
+    finalize ctx
 {-# INLINE hashShortByteString #-}
 
 hashStorable :: forall a b . Hash a => Storable b => b -> IO a
 hashStorable b = do
-        ctx <- initialize @a
-        updateStorable @a ctx b
-        finalize ctx
+    ctx <- initialize @a
+    updateStorable @a ctx b
+    finalize ctx
 {-# INLINE hashStorable #-}
 
 hashByteArray :: forall a . Hash a => ByteArray# -> IO a
 hashByteArray b = do
-        ctx <- initialize @a
-        updateByteArray @a ctx b
-        finalize ctx
+    ctx <- initialize @a
+    updateByteArray @a ctx b
+    finalize ctx
 {-# INLINE hashByteArray #-}
 

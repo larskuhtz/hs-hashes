@@ -51,7 +51,6 @@ flag openssl-use-pkg-config
 common openssl-common
     if flag(with-openssl)
         c-sources:
-            cbits/keccak.h
             cbits/keccak.c
         cpp-options: -DWITH_OPENSSL=1
         if flag(openssl-use-pkg-config)
@@ -101,6 +100,7 @@ test-suite tests
     other-modules:
         Test.Data.Hash.SipHash
         Test.Data.Hash.FNV1
+        Test.Data.Hash.SHA3
         Test.Data.Hash.Class.Pure
     build-depends:
         -- internal
@@ -110,6 +110,8 @@ test-suite tests
         , base >=4.11 && <5
         , bytestring >=0.10
         , sydtest >=0.4
+        , sha-validation >=0.0
+        , vector >=0.12
 
     if flag(test-cryptonite)
         build-depends:

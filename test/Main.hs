@@ -14,6 +14,7 @@ module Main
 import qualified Test.Data.Hash.FNV1
 import qualified Test.Data.Hash.SipHash
 import qualified Test.Data.Hash.Class.Pure
+import qualified Test.Data.Hash.SHA3
 
 #if defined(TEST_CRYPTONITE)
 import qualified Cryptonite
@@ -29,6 +30,7 @@ tests = do
     describe "Test.Data.Hash.FNV1.tests" Test.Data.Hash.FNV1.tests
     describe "Test.Data.Hash.SipHash.tests" Test.Data.Hash.SipHash.tests
     describe "Test.Data.Hash.Class.Pure" Test.Data.Hash.Class.Pure.tests
+    describe "Test.Data.Hash.SHA3" Test.Data.Hash.SHA3.tests
 
 #if defined(TEST_CRYPTONITE)
     describe "Cryptonite" Cryptonite.tests
