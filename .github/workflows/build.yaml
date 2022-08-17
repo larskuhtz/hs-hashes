@@ -15,8 +15,7 @@ jobs:
       matrix:
         ghc: ['8.8.4', '8.10.7', '9.0.1']
         cabal: ['3.4']
-        os:
-        - 'ubuntu-20.04'
+        os: ['ubuntu-20.04', 'ubuntu-22.04']
         cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
         openssl: [ '+with-openssl', '-with-openssl' ]
         include:
