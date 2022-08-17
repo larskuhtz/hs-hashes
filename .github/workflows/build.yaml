@@ -2,8 +2,6 @@ name: Build
 
 on:
   push:
-  schedule:
-    - cron: '0 8 * * *'
 
 jobs:
 
@@ -13,33 +11,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: ['8.8.4', '8.10.7', '9.0.1']
-        cabal: ['3.4']
+        ghc: ['8.10.7', '9.0.1', '9.2']
+        cabal: ['3.6']
         os: ['ubuntu-20.04', 'ubuntu-22.04']
         cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
         openssl: [ '+with-openssl', '-with-openssl' ]
         include:
-        - ghc: '9.2'
-          cabal: '3.4'
-          os: 'ubuntu-20.04'
-          cryptonite: '-test-cryptonite -benchmark-cryptonite'
-          openssl: '+with-openssl'
         - include:
           ghc: '9.0.1'
-          cabal: '3.4'
+          cabal: '3.6'
           os: 'macOS-latest'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
         - include:
           ghc: '8.10.7'
-          cabal: '3.4'
+          cabal: '3.6'
           os: 'macOS-latest'
-          cryptonite: '+test-cryptonite +benchmark-cryptonite'
-          openssl: '+with-openssl'
-        - include:
-          ghc: '8.10.7'
-          cabal: '3.4'
-          os: 'ubuntu-18.04'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
 
