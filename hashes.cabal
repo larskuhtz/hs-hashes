@@ -56,7 +56,8 @@ common openssl-common
         if flag(openssl-use-pkg-config)
             pkgconfig-depends: libcrypto
         else
-            extra-Libraries: crypto
+            extra-libraries: crypto
+        include-dirs: cbits
 
 library
     import: openssl-common
@@ -116,7 +117,6 @@ test-suite tests
             , sha-validation >=0.0
         other-modules:
             Test.Data.Hash.SHA3
-        cpp-options: -DWITH_OPENSSL=1
 
     if flag(test-cryptonite)
         build-depends:

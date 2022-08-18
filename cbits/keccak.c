@@ -62,7 +62,7 @@ KECCAK256_CTX *keccak256_newctx()
 {
     KECCAK256_CTX * ctx = ((OSSL_FUNC_digest_newctx_fn *) dispatch256(OSSL_FUNC_DIGEST_NEWCTX))(NULL);
 
-    // this has already be called once by the dispatch function. Here we update the pad character
+    // this has already been called once by the dispatch function. Here we update the pad character
     if (ctx) ossl_sha3_init(ctx, '\x01', 256);
     return ctx;
 }
@@ -71,7 +71,7 @@ KECCAK512_CTX *keccak512_newctx()
 {
     KECCAK512_CTX * ctx = ((OSSL_FUNC_digest_newctx_fn *) dispatch512(OSSL_FUNC_DIGEST_NEWCTX))(NULL);
 
-    // this has already be called once by the dispatch function. Here we update the pad character
+    // this has already been called once by the dispatch function. Here we update the pad character
     if (ctx) ossl_sha3_init(ctx, '\x01', 512);
     return ctx;
 }
