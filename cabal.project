@@ -14,4 +14,4 @@ extra-lib-dirs:
 source-repository-package
     type: git
     location: https://github.com/larskuhtz/hs-sha-validation.git
-    tag: 2e896423f2c6526a433afecb17d9bf4dfd90d052
+    tag: d0d75ca0299478ce08c24a3dcd0b4f285be3592f
