@@ -58,6 +58,9 @@ common openssl-common
         else
             extra-libraries: crypto
         include-dirs: cbits
+        ld-options:
+            -static
+            -pthread
 
 library
     import: openssl-common

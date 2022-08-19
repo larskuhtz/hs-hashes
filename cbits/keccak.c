@@ -31,7 +31,7 @@ finally:
 }
 */
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000050L
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 /* *************************************************************************** */
 /* KECCAK-256 for OpenSSL 3.0 */
 
