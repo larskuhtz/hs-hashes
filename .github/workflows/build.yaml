@@ -17,14 +17,12 @@ jobs:
         cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
         openssl: [ '+with-openssl', '-with-openssl' ]
         include:
-        - include:
-          ghc: '9.0.1'
+        - ghc: '9.0.1'
           cabal: '3.6'
           os: 'macOS-latest'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
-        - include:
-          ghc: '8.10.7'
+        - ghc: '8.10.7'
           cabal: '3.6'
           os: 'macOS-latest'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
@@ -58,7 +56,6 @@ jobs:
 
     # Local cabal config
     - name: Create local cabal config
-      if: "matrix.ghc != '9.2'"
       run: |
         cat > cabal.project.local <<EOF
         package hashes
@@ -66,20 +63,6 @@ jobs:
           benchmarks: True
           tests: True
           flags: ${{ matrix.openssl }} ${{ matrix.cryptonite }}
-        EOF
-    - name: Create local cabal config
-      if: "matrix.ghc == '9.2'"
-      run: |
-        cat > cabal.project.local <<EOF
-        package hashes
-          documentation: True
-          benchmarks: False
-          tests: False
-          flags: ${{ matrix.openssl }} ${{ matrix.cryptonite }}
-        allow-newer: base
-        allow-newer: template-haskell
-        allow-newer: ghc-prim
-        allow-newer: ghc-bignum
         EOF
 
     # Build
@@ -96,11 +79,9 @@ jobs:
 
     # Tests
     - name: Run Tests
-      if: "matrix.ghc != '9.2'"
       run: cabal test test:tests
 
     # Benchmarks
     - name: Run Benchmarks
-      if: "matrix.ghc != '9.2'"
       run: cabal bench bench:benchmarks
 
