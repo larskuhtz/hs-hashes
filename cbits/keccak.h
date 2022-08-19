@@ -9,20 +9,10 @@
     }
 
 /* *************************************************************************** */
-/* Keccak-256 */
+/* Keccak */
 
-#if OPENSSL_VERSION_NUMBER >= 0x31000000L
-
-#elif OPENSSL_VERSION_NUMBER >= 0x30000000L
-typedef struct keccak1600_ctx_st KECCAK1600_CTX;
-typedef KECCAK1600_CTX KECCAK256_CTX;
-typedef KECCAK1600_CTX KECCAK512_CTX;
-
-#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 typedef EVP_MD_CTX KECCAK256_CTX;
 typedef EVP_MD_CTX KECCAK512_CTX;
-
-#endif
 
 // KECCAK-256
 KECCAK256_CTX *keccak256_newctx();
