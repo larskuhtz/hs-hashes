@@ -2,8 +2,6 @@ name: Build
 
 on:
   push:
-  schedule:
-    - cron: '0 8 * * *'
 
 jobs:
 
@@ -13,34 +11,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: ['8.8.4', '8.10.7', '9.0.1']
-        cabal: ['3.4']
-        os:
-        - 'ubuntu-20.04'
+        ghc: ['8.10.7', '9.0.1', '9.2']
+        cabal: ['3.6']
+        os: ['ubuntu-20.04', 'ubuntu-22.04']
         cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
         openssl: [ '+with-openssl', '-with-openssl' ]
         include:
-        - ghc: '9.2'
-          cabal: '3.4'
-          os: 'ubuntu-20.04'
-          cryptonite: '-test-cryptonite -benchmark-cryptonite'
-          openssl: '+with-openssl'
-        - include:
-          ghc: '9.0.1'
-          cabal: '3.4'
+        - ghc: '9.0.1'
+          cabal: '3.6'
           os: 'macOS-latest'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
-        - include:
-          ghc: '8.10.7'
-          cabal: '3.4'
+        - ghc: '8.10.7'
+          cabal: '3.6'
           os: 'macOS-latest'
-          cryptonite: '+test-cryptonite +benchmark-cryptonite'
-          openssl: '+with-openssl'
-        - include:
-          ghc: '8.10.7'
-          cabal: '3.4'
-          os: 'ubuntu-18.04'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
 
@@ -50,7 +34,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
     - name: Install GHC and Cabal
-      uses: larskuhtz/actions/setup@e0f107055073590682bc5264b8da5c2b6af39a65
+      uses: haskell/actions/setup@v2
       with:
          ghc-version: ${{ matrix.ghc }}
          cabal-version: ${{ matrix.cabal }}
@@ -72,7 +56,6 @@ jobs:
 
     # Local cabal config
     - name: Create local cabal config
-      if: "matrix.ghc != '9.2'"
       run: |
         cat > cabal.project.local <<EOF
         package hashes
@@ -80,20 +63,6 @@ jobs:
           benchmarks: True
           tests: True
           flags: ${{ matrix.openssl }} ${{ matrix.cryptonite }}
-        EOF
-    - name: Create local cabal config
-      if: "matrix.ghc == '9.2'"
-      run: |
-        cat > cabal.project.local <<EOF
-        package hashes
-          documentation: True
-          benchmarks: False
-          tests: False
-          flags: ${{ matrix.openssl }} ${{ matrix.cryptonite }}
-        allow-newer: base
-        allow-newer: template-haskell
-        allow-newer: ghc-prim
-        allow-newer: ghc-bignum
         EOF
 
     # Build
@@ -110,11 +79,9 @@ jobs:
 
     # Tests
     - name: Run Tests
-      if: "matrix.ghc != '9.2'"
       run: cabal test test:tests
 
     # Benchmarks
     - name: Run Benchmarks
-      if: "matrix.ghc != '9.2'"
       run: cabal bench bench:benchmarks
 

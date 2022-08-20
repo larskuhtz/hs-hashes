@@ -51,13 +51,13 @@ flag openssl-use-pkg-config
 common openssl-common
     if flag(with-openssl)
         c-sources:
-            cbits/keccak.h
             cbits/keccak.c
         cpp-options: -DWITH_OPENSSL=1
         if flag(openssl-use-pkg-config)
             pkgconfig-depends: libcrypto
         else
-            extra-Libraries: crypto
+            extra-libraries: crypto
+        include-dirs: cbits
 
 library
     import: openssl-common
@@ -110,6 +110,13 @@ test-suite tests
         , base >=4.11 && <5
         , bytestring >=0.10
         , sydtest >=0.4
+        , vector >=0.12
+
+    if flag(with-openssl)
+        build-depends:
+            , sha-validation >=0.0
+        other-modules:
+            Test.Data.Hash.SHA3
 
     if flag(test-cryptonite)
         build-depends:

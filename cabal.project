@@ -1,7 +1,5 @@
 packages: .
 
-write-ghc-environment-files: always
-
 package hashes
     optimization: 2
     ghc-options: -Wall
@@ -13,3 +11,7 @@ extra-lib-dirs:
     /opt/local/lib
     /usr/local/opt/openssl/lib/
 
+source-repository-package
+    type: git
+    location: https://github.com/larskuhtz/hs-sha-validation.git
+    tag: d0d75ca0299478ce08c24a3dcd0b4f285be3592f
