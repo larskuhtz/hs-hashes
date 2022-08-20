@@ -1,5 +1,10 @@
 # Revision history for the hashes package
 
+## 0.2.2.0 -- 2022-08-20
+
+*   Test suite for SHA hash functions
+*   Fix openssl-3.0 support
+
 ## 0.2.1.1 -- 2021-10-23
 
 *   Fixes for building with GHC-9.2

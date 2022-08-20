@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: hashes
-version: 0.2.1.1
+version: 0.2.2.0
 synopsis: Hash functions
 Description: Efficient implementations of hash functions
 homepage: https://github.com/larskuhtz/hs-hashes
@@ -12,9 +12,9 @@ maintainer: lakuhtz@gmail.com
 copyright: Copyright (c) 2019-2021 Lars Kuhtz <lakuhtz@gmail.com>
 category: Data
 tested-with:
+    GHC==9.2
     GHC==9.0.1
     GHC==8.10.7
-    GHC==8.8.4
 extra-source-files:
     README.md
     CHANGELOG.md
