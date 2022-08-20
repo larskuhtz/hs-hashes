@@ -26,7 +26,7 @@ int main()
     printf("expected         : %s\n", expected);
 
 finally:
-    if (ctx) keccak256_freectx(ctx);
+    if (ctx) EVP_MD_CTX_free(ctx);
     return ! ok;
 }
 */
@@ -39,7 +39,7 @@ finally:
  *
  * Assuming conventional alignment, the bytes offset is
  *
- * sizeof(uint64_t) * 40 + size_of(size_t) * 3 + (1600 / 8 - 32)
+ * sizeof(uint64_t) * 25 + size_of(size_t) * 3 + (1600 / 8 - 32)
  *
  * On a 64bit platform this number is 392
  */
@@ -71,7 +71,7 @@ KECCAK512_CTX *keccak512_newctx()
 int keccak256_init(KECCAK256_CTX *ctx) {
     int ok = 1;
     const EVP_MD *md = NULL;
-    CHECKED(md = EVP_get_digestbyname("KECCAK-256"));
+    CHECKED(md = EVP_get_digestbyname("KECCAK-256")); // deprecated, no need to free md
     CHECKED(EVP_DigestInit(ctx, md));
 finally:
     return ok;
@@ -80,22 +80,25 @@ finally:
 int keccak512_init(KECCAK512_CTX *ctx) {
     int ok = 1;
     const EVP_MD *md = NULL;
-    CHECKED(md = EVP_get_digestbyname("KECCAK-512"));
+    CHECKED(md = EVP_get_digestbyname("KECCAK-512")); // deprecated, no need to free md
     CHECKED(EVP_DigestInit(ctx, md));
 finally:
     return ok;
 }
 
 #elif OPENSSL_VERSION_NUMBER >= 0x30000000L
+
+#define GET_CTX(ctx) (((uint8_t **) ctx) + 7)
+
 int keccak256_init(KECCAK256_CTX *ctx) {
     int ok = 1;
     const EVP_MD *md = NULL;
     int padByteOffset = 25 * sizeof(uint64_t) + 3 * sizeof(size_t) + 1600/8 - 32;
-    CHECKED(md = EVP_sha3_256());
+    CHECKED(md = EVP_get_digestbyname("SHA3-256")); // deprecated, no need to free md
     CHECKED(EVP_DigestInit(ctx, md));
 
     // MAGIC (set padding char to 0x1)
-    ((uint8_t *) ctx)[padByteOffset] = 0x01;
+    ((uint8_t *) *GET_CTX(ctx))[padByteOffset] = 0x01;
 finally:
     return ok;
 }
@@ -108,7 +111,7 @@ int keccak512_init(KECCAK512_CTX *ctx) {
     CHECKED(EVP_DigestInit(ctx, md));
 
     // MAGIC (set padding char to 0x1)
-    ((uint8_t *) ctx)[padByteOffset] = 0x01;
+    ((uint8_t *) *GET_CTX(ctx))[padByteOffset] = 0x01;
 finally:
     return ok;
 }
@@ -172,5 +175,3 @@ void keccak512_freectx(KECCAK512_CTX *ctx)
 {
     return EVP_MD_CTX_free(ctx);
 }
-
-
