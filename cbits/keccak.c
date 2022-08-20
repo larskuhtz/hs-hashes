@@ -88,8 +88,8 @@ finally:
 
 /* OPENSSL 1.1 */
 #elif OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define GET_CTX(ctx) (EVP_MD_CTX_MD_data(ctx))
-#define SET_PAD_BYTE (((uint8_t *) GET_CTX(ctx))[PAD_BYTE_OFFSET] = 0x01)
+#define GET_CTX(ctx) ((uint8_t *) EVP_MD_CTX_md_data(ctx))
+#define SET_PAD_BYTE (GET_CTX(ctx)[PAD_BYTE_OFFSET] = 0x01)
 
 #endif
 
