@@ -114,7 +114,7 @@ test-suite tests
 
     if flag(with-openssl)
         build-depends:
-            , sha-validation >=0.0
+            , sha-validation >=0.1
         other-modules:
             Test.Data.Hash.SHA3
 
