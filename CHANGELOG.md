@@ -1,5 +1,9 @@
 # Revision history for the hashes package
 
+## 0.2.2.1 -- 2022-09-28
+
+*   Support for Apple Silicon (`aarch64_HOST_ARCH`)
+
 ## 0.2.2.0 -- 2022-08-20
 
 *   Test suite for SHA hash functions

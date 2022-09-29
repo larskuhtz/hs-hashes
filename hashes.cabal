@@ -1,6 +1,6 @@
 cabal-version: 2.4
 name: hashes
-version: 0.2.2.0
+version: 0.2.2.1
 synopsis: Hash functions
 Description: Efficient implementations of hash functions
 homepage: https://github.com/larskuhtz/hs-hashes
