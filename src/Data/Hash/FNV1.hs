@@ -366,7 +366,7 @@ fnvOffsetBasis64 = 0xcbf29ce484222325
 {-# INLINE fnvOffsetBasis64 #-}
 
 fnvPrime :: Word
-#if defined(x86_64_HOST_ARCH)
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
 fnvPrime = fromIntegral fnvPrime64
 #elif defined(i386_HOST_ARCH)
 fnvPrime = fromIntegral fvnPrime32
@@ -376,7 +376,7 @@ fnvPrime = error "fnvPrime: unsupported hardware platform"
 {-# INLINE fnvPrime #-}
 
 fnvOffsetBasis :: Word
-#if defined(x86_64_HOST_ARCH)
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
 fnvOffsetBasis = fromIntegral fnvOffsetBasis64
 #elif defined(i386_HOST_ARCH)
 fnvOffsetBasis = fromIntegral fnvOffsetBasis32
