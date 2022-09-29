@@ -460,7 +460,7 @@ testZeroPrim :: B.ByteString -> Bool
 testZeroPrim b = primitiveFnv1 b == 0
 
 testVectorsPrim :: [(B.ByteString, Word)]
-#if defined(x86_64_HOST_ARCH) || defined(arm64_HOST_ARCH)
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
 testVectorsPrim = second fromIntegral <$> testVectors64
 #elif defined(i386_HOST_ARCH)
 testVectorsPrim = second fromIntegral <$> testVectors32
@@ -469,7 +469,7 @@ testVectorsPrim = error "testVectorsPrim: unsupported hardware platform"
 #endif
 
 zerosPrim :: [B.ByteString]
-#if defined(x86_64_HOST_ARCH) || defined(arm64_HOST_ARCH)
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
 zerosPrim = zeros64
 #elif defined(i386_HOST_ARCH)
 zerosPrim = zeros32
@@ -503,14 +503,14 @@ testZeroPrima :: B.ByteString -> Bool
 testZeroPrima b = primitiveFnv1a b == 0
 
 testVectorsPrima :: [(B.ByteString, Word)]
-#if defined(x86_64_HOST_ARCH) || defined(arm64_HOST_ARCH)
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
 testVectorsPrima = second fromIntegral <$> testVectors64a
 #elif defined(i386_HOST_ARCH)
 testVectorsPrima = second fromIntegral <$> testVectors32a
 #endif
 
 zerosPrima :: [B.ByteString]
-#if defined(x86_64_HOST_ARCH) || defined(arm64_HOST_ARCH)
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
 zerosPrima = zeros64a
 #elif defined(i386_HOST_ARCH)
 zerosPrima = zeros32a
