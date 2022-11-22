@@ -1,5 +1,11 @@
 # Revision history for the hashes package
 
+## 0.2.3 -- 2022-11-22
+
+*   Support reset and reuse of context for OpenSSL digests.
+*   Avoid the use of deprecated OpenSSL methods.
+*   Add methods to write digests directly to a pointer for Keccak digests.
+
 ## 0.2.2.1 -- 2022-09-28
 
 *   Support for Apple Silicon (`aarch64_HOST_ARCH`)
