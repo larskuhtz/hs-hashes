@@ -11,19 +11,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: ['8.10.7', '9.0.1', '9.2']
-        cabal: ['3.6']
+        ghc: ['8.10.7', '9.0.2', '9.2']
+        cabal: ['3.8']
         os: ['ubuntu-20.04', 'ubuntu-22.04']
         cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
         openssl: [ '+with-openssl', '-with-openssl' ]
         include:
-        - ghc: '9.0.1'
-          cabal: '3.6'
+        - ghc: '9.0.2'
+          cabal: '3.8'
           os: 'macOS-latest'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
         - ghc: '8.10.7'
-          cabal: '3.6'
+          cabal: '3.8'
           os: 'macOS-latest'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
@@ -32,15 +32,15 @@ jobs:
 
     # Setup
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Install GHC and Cabal
-      uses: haskell/actions/setup@v2
+      uses: haskell/actions/setup@v2.0.2
       with:
          ghc-version: ${{ matrix.ghc }}
          cabal-version: ${{ matrix.cabal }}
 
     # Restore Packages from Caches
-    - uses: pat-s/always-upload-cache@v2.1.5
+    - uses: actions/cache@v3
       name: Cache dist-newstyle
       with:
         path: |
