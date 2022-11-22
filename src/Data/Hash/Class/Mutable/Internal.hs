@@ -12,15 +12,20 @@
 -- Maintainer: Lars Kuhtz <lakuhtz@gmail.com>
 -- Stability: experimental
 --
--- Incremental Mutable Hashes
+-- Incremental and Resetable Mutable Hashes
 --
 module Data.Hash.Class.Mutable.Internal
-( IncrementalHash(..)
+(
+-- * Incremental Hashes
+  IncrementalHash(..)
 , updateByteString
 , updateByteStringLazy
 , updateShortByteString
 , updateStorable
 , updateByteArray
+
+-- * Resetable Hashes
+, ResetableHash(..)
 ) where
 
 import qualified Data.ByteString as B
@@ -103,4 +108,10 @@ updateByteArray ctx a# = case isByteArrayPinned# a# of
   where
     size# = sizeofByteArray# a#
 {-# INLINE updateByteArray #-}
+
+-- -------------------------------------------------------------------------- --
+-- Class of Resetable Hashes
+
+class IncrementalHash a => ResetableHash a where
+    reset :: Context a -> IO ()
 

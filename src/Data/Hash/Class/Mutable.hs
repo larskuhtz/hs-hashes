@@ -29,6 +29,9 @@ module Data.Hash.Class.Mutable
 , updateShortByteString
 , updateStorable
 , updateByteArray
+
+-- * Resetable Hashes
+, ResetableHash(..)
 ) where
 
 import qualified Data.ByteString as B
@@ -47,7 +50,7 @@ import GHC.IO
 import Data.Hash.Class.Mutable.Internal
 
 -- -------------------------------------------------------------------------- --
--- Class of Salted Pure Hashes
+-- Class of Mutable Hashes
 
 class IncrementalHash a => Hash a where
     initialize :: IO (Context a)

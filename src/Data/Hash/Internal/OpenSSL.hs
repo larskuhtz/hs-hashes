@@ -28,7 +28,7 @@ module Data.Hash.Internal.OpenSSL
   Algorithm(..)
 , Ctx(..)
 , Digest(..)
-, newCtx
+, resetCtx
 , initCtx
 , updateCtx
 , finalCtx
@@ -66,6 +66,10 @@ module Data.Hash.Internal.OpenSSL
 
 , Keccak256(..)
 , Keccak512(..)
+
+-- *** Unsafe finalize functions
+, finalizeKeccak256Ptr
+, finalizeKeccak512Ptr
 
 -- ** Blake2
 --
@@ -126,16 +130,17 @@ foreign import ccall unsafe "openssl/evp.h &EVP_MD_CTX_destroy"
 #endif
     c_evp_ctx_free_ptr :: FunPtr (Ptr a -> IO ())
 
--- obsolete, superseeded by EVP_DigestInit_ex instead, but not deprecated
--- (beware in case this becomes a macro in future versions)
---
-foreign import ccall unsafe "opnessl/evp.h EVP_DigestInit"
-    c_evp_digest_init :: Ptr ctx -> Ptr alg -> IO Bool
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex2"
+#else
+foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex"
+#endif
+    c_evp_digest_init :: Ptr ctx -> Ptr alg -> Ptr Void {- nullPtr -} -> IO Bool
 
-foreign import ccall unsafe "opnessl/evp.h EVP_DigestUpdate"
+foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate"
     c_evp_digest_update :: Ptr ctx -> Ptr d -> Int -> IO Bool
 
-foreign import ccall unsafe "opnessl/evp.h EVP_DigestFinal"
+foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex"
     c_evp_digest_final :: Ptr ctx -> Ptr d -> Int -> IO Bool
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -152,28 +157,40 @@ foreign import ccall unsafe "openssl/evp.h EVP_MD_size"
 #endif
     c_evp_get_size :: Algorithm -> IO Int
 
-newCtx :: IO (Ctx a)
-newCtx = fmap Ctx $ mask_ $ do
-    ptr <- c_evp_ctx_new
-    when (ptr == nullPtr) $ throw $ OpenSslException "failed to initialize context"
-    newForeignPtr c_evp_ctx_free_ptr ptr
-{-# INLINE newCtx #-}
-
+-- | Allocates and initializes a new context. The context may be reused by
+-- calling 'resetCtx' on it.
+--
 initCtx :: Algorithm -> IO (Ctx a)
 initCtx (Algorithm alg) = do
-    Ctx ctx <- newCtx
+    ctx <- mask_ $ do
+        ptr <- c_evp_ctx_new
+        when (ptr == nullPtr) $ throw $ OpenSslException "failed to create new context"
+        newForeignPtr c_evp_ctx_free_ptr ptr
     r <- withForeignPtr ctx $ \ptr ->
-        c_evp_digest_init ptr alg
+        c_evp_digest_init ptr alg nullPtr
     unless r $ throw $ OpenSslException "digest initialization failed"
     return $ Ctx ctx
 {-# INLINE initCtx #-}
 
+-- | Resets a context an initialize context.
+--
+resetCtx :: Ctx a -> IO ()
+resetCtx (Ctx ctx) = do
+    r <- withForeignPtr ctx $ \ptr ->
+        c_evp_digest_init ptr nullPtr nullPtr
+    unless r $ throw $ OpenSslException "digest re-initialization failed"
+{-# INLINE resetCtx #-}
+
+-- | Feed more data into an context.
+--
 updateCtx :: Ctx a -> Ptr Word8 -> Int -> IO ()
 updateCtx (Ctx ctx) d c = withForeignPtr ctx $ \ptr -> do
     r <- c_evp_digest_update ptr d c
     unless r $ throw $ OpenSslException "digest update failed"
 {-# INLINE updateCtx #-}
 
+-- | Finalize a hash and return the digest.
+--
 finalCtx :: Ctx a -> IO (Digest a)
 finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
     s <- c_evp_ctx_get0_md ptr >>= c_evp_get_size
@@ -199,6 +216,10 @@ instance OpenSslDigest a => IncrementalHash (Digest a) where
 instance OpenSslDigest a => Hash (Digest a) where
     initialize = initCtx (algorithm @a)
     {-# INLINE initialize #-}
+
+instance OpenSslDigest a => ResetableHash (Digest a) where
+    reset = resetCtx
+    {-# INLINE reset #-}
 
 -- -------------------------------------------------------------------------- --
 -- Digests
@@ -378,6 +399,9 @@ foreign import ccall unsafe "keccak.h keccak256_newctx"
 foreign import ccall unsafe "keccak.h keccak256_init"
     c_keccak256_init :: Ptr ctx -> IO Bool
 
+foreign import ccall unsafe "keccak.h keccak256_reset"
+    c_keccak256_reset :: Ptr ctx -> IO Bool
+
 foreign import ccall unsafe "keccak.h keccak256_update"
     c_keccak256_update :: Ptr ctx -> Ptr Word8 -> Int -> IO Bool
 
@@ -400,13 +424,31 @@ instance IncrementalHash Keccak256 where
     {-# INLINE update #-}
     {-# INLINE finalize #-}
 
-
 newKeccak256Ctx :: IO (Ctx Keccak256)
 newKeccak256Ctx = fmap Ctx $ mask_ $ do
     ptr <- c_keccak256_newctx
     when (ptr == nullPtr) $ throw $ OpenSslException "failed to initialize context"
     newForeignPtr c_keccak256_freectx_ptr ptr
 {-# INLINE newKeccak256Ctx #-}
+
+resetKeccak256Ctx :: Ctx Keccak256 -> IO ()
+resetKeccak256Ctx (Ctx ctx) = do
+    r <- withForeignPtr ctx $ \ptr ->
+        c_keccak256_reset ptr
+    unless r $ throw $ OpenSslException "digest re-initialization failed"
+{-# INLINE resetKeccak256Ctx #-}
+
+-- | Low-Level function that writes the final digest directly into the provided
+-- pointer. The pointer must point to at least 64 bytes of allocated memory.
+-- This is not checked and a violation of this condition may result in a
+-- segmentation fault.
+--
+finalizeKeccak256Ptr :: Ctx Keccak256 -> Ptr Word8 -> IO ()
+finalizeKeccak256Ptr (Ctx ctx) dptr =
+    withForeignPtr ctx $ \cptr -> do
+        r <- c_keccak256_final cptr dptr
+        unless r $ throw $ OpenSslException "digest finalization failed"
+{-# INLINE finalizeKeccak256Ptr #-}
 
 instance Hash Keccak256 where
     initialize = do
@@ -416,6 +458,10 @@ instance Hash Keccak256 where
         unless r $ throw $ OpenSslException "digest initialization failed"
         return $ Ctx ctx
     {-# INLINE initialize #-}
+
+instance ResetableHash Keccak256 where
+    reset = resetKeccak256Ctx
+    {-# INLINE reset #-}
 
 -- KECCAK-512
 
@@ -428,6 +474,9 @@ foreign import ccall unsafe "keccak.h keccak512_newctx"
 
 foreign import ccall unsafe "keccak.h keccak512_init"
     c_keccak512_init :: Ptr ctx -> IO Bool
+
+foreign import ccall unsafe "keccak.h keccak512_reset"
+    c_keccak512_reset :: Ptr ctx -> IO Bool
 
 foreign import ccall unsafe "keccak.h keccak512_update"
     c_keccak512_update :: Ptr ctx -> Ptr Word8 -> Int -> IO Bool
@@ -451,13 +500,31 @@ instance IncrementalHash Keccak512 where
     {-# INLINE update #-}
     {-# INLINE finalize #-}
 
-
 newKeccak512Ctx :: IO (Ctx Keccak512)
 newKeccak512Ctx = fmap Ctx $ mask_ $ do
     ptr <- c_keccak512_newctx
     when (ptr == nullPtr) $ throw $ OpenSslException "failed to initialize context"
     newForeignPtr c_keccak512_freectx_ptr ptr
 {-# INLINE newKeccak512Ctx #-}
+
+resetKeccak512Ctx :: Ctx Keccak512 -> IO ()
+resetKeccak512Ctx (Ctx ctx) = do
+    r <- withForeignPtr ctx $ \ptr ->
+        c_keccak512_reset ptr
+    unless r $ throw $ OpenSslException "digest re-initialization failed"
+{-# INLINE resetKeccak512Ctx #-}
+
+-- | Low-Level function that writes the final digest directly into the provided
+-- pointer. The pointer must point to at least 64 bytes of allocated memory.
+-- This is not checked and a violation of this condition may result in a
+-- segmentation fault.
+--
+finalizeKeccak512Ptr :: Ctx Keccak512 -> Ptr Word8 -> IO ()
+finalizeKeccak512Ptr (Ctx ctx) dptr = do
+    withForeignPtr ctx $ \cptr -> do
+        r <- c_keccak512_final cptr dptr
+        unless r $ throw $ OpenSslException "digest finalization failed"
+{-# INLINE finalizeKeccak512Ptr #-}
 
 instance Hash Keccak512 where
     initialize = do
@@ -467,6 +534,10 @@ instance Hash Keccak512 where
         unless r $ throw $ OpenSslException "digest initialization failed"
         return $ Ctx ctx
     {-# INLINE initialize #-}
+
+instance ResetableHash Keccak512 where
+    reset = resetKeccak512Ctx
+    {-# INLINE reset #-}
 
 -- -------------------------------------------------------------------------- --
 -- Blake

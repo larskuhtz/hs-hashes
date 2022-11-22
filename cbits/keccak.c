@@ -34,7 +34,7 @@ finally:
 /* *************************************************************************** */
 /* OpenSSL 1.1 and OpenSSL 3.0 */
 
-/* The computation of the magic offset is base on the keccak_st structure in
+/* The computation of the magic offset is based on the keccak_st structure in
  * OpenSSL-1.1 and OpenSSL-3.0
  *
  * Assuming conventional alignment, the bytes offset is
@@ -79,7 +79,7 @@ finally:
 
 /* OPENSSL 3.1 */
 #if OPENSSL_VERSION_NUMBER >= 0x31000000L
-#define SET_PAD_BYTE 
+#define SET_PAD_BYTE
 
 /* OPENSSL 3.0 */
 #elif OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -111,7 +111,7 @@ int keccak256_init(KECCAK256_CTX *ctx) {
     int ok = 1;
     const EVP_MD *md = NULL;
     CHECKED(md = EVP_get_digestbyname("SHA3-256"));
-    CHECKED(EVP_DigestInit(ctx, md));
+    CHECKED(EVP_DigestInit_ex(ctx, md, NULL));
     SET_PAD_BYTE;
 finally:
     return ok;
@@ -121,7 +121,23 @@ int keccak512_init(KECCAK512_CTX *ctx) {
     int ok = 1;
     const EVP_MD *md = NULL;
     CHECKED(md = EVP_get_digestbyname("SHA3-512"));
-    CHECKED(EVP_DigestInit(ctx, md));
+    CHECKED(EVP_DigestInit_ex(ctx, md, NULL));
+    SET_PAD_BYTE;
+finally:
+    return ok;
+}
+
+int keccak256_reset(KECCAK512_CTX *ctx) {
+    int ok = 1;
+    CHECKED(EVP_DigestInit_ex(ctx, NULL, NULL));
+    SET_PAD_BYTE;
+finally:
+    return ok;
+}
+
+int keccak512_reset(KECCAK512_CTX *ctx) {
+    int ok = 1;
+    CHECKED(EVP_DigestInit_ex(ctx, NULL, NULL));
     SET_PAD_BYTE;
 finally:
     return ok;
@@ -140,13 +156,13 @@ int keccak512_update(KECCAK512_CTX *ctx, const void *p, size_t l)
 int keccak256_final(KECCAK256_CTX *ctx, unsigned char *md)
 {
     unsigned int l;
-    return EVP_DigestFinal(ctx, md, &l);
+    return EVP_DigestFinal_ex(ctx, md, &l);
 }
 
 int keccak512_final(KECCAK512_CTX *ctx, unsigned char *md)
 {
     unsigned int l;
-    return EVP_DigestFinal(ctx, md, &l);
+    return EVP_DigestFinal_ex(ctx, md, &l);
 }
 
 void keccak256_freectx(KECCAK256_CTX *ctx)
