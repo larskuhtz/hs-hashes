@@ -16,6 +16,7 @@ import qualified Test.Data.Hash.SipHash
 import qualified Test.Data.Hash.Class.Pure
 
 #if defined(WITH_OPENSSL)
+import qualified Test.Data.Hash.SHA2
 import qualified Test.Data.Hash.SHA3
 #endif
 
@@ -35,6 +36,7 @@ tests = do
     describe "Test.Data.Hash.Class.Pure" Test.Data.Hash.Class.Pure.tests
 
 #if defined(WITH_OPENSSL)
+    describe "Test.Data.Hash.SHA2" Test.Data.Hash.SHA2.tests
     describe "Test.Data.Hash.SHA3" Test.Data.Hash.SHA3.tests
 #endif
 
