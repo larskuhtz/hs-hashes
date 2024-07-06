@@ -4,10 +4,31 @@ package hashes
     optimization: 2
     ghc-options: -Wall
 
-extra-include-dirs:
-    /opt/local/include
-    /usr/local/opt/openssl/include
-extra-lib-dirs:
-    /opt/local/lib
-    /usr/local/opt/openssl/lib/
-
+if os(linux)
+    extra-include-dirs:
+        /opt/local/include
+        /usr/local/opt/openssl/include
+    extra-lib-dirs:
+        /opt/local/lib
+        /usr/local/opt/openssl/lib/
+elif os(darwin)
+    if arch(aarch64)
+        package *
+            extra-include-dirs:
+                /opt/homebrew/include
+                /opt/homebrew/opt/openssl/include
+            extra-lib-dirs:
+                /opt/homebrew/lib
+                /opt/homebrew/opt/openssl/lib
+    else
+        package *
+            extra-include-dirs:
+                /opt/local/include
+                /usr/local/opt/openssl/include
+                /opt/homebrew/include
+                /opt/homebrew/opt/openssl/include
+            extra-lib-dirs:
+                /opt/local/lib
+                /usr/local/opt/openssl/lib/
+                /opt/homebrew/lib
+                /opt/homebrew/opt/openssl/lib
