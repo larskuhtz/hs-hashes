@@ -21,13 +21,33 @@ jobs:
         os:
         - 'ubuntu-20.04'
         - 'ubuntu-22.04'
-        - 'macos-latest'
         cryptonite:
         - '-test-cryptonite -benchmark-cryptonite'
         - '+test-cryptonite +benchmark-cryptonite'
         openssl:
         - '+with-openssl'
         - '-with-openssl'
+        include:
+        - ghc: '9.2'
+          os: macos-latest
+          cabal: '3.12'
+          cryptonite: '+test-cryptonite +benchmark-cryptonite'
+          openssl: '+with-openssl'
+        - ghc: '9.4'
+          os: macos-latest
+          cabal: '3.12'
+          cryptonite: '-test-cryptonite +benchmark-cryptonite'
+          openssl: '-with-openssl'
+        - ghc: '9.6'
+          os: macos-latest
+          cabal: '3.12'
+          cryptonite: '+test-cryptonite -benchmark-cryptonite'
+          openssl: '+with-openssl'
+        - ghc: '9.10'
+          os: macos-latest
+          cabal: '3.12'
+          cryptonite: '+test-cryptonite +benchmark-cryptonite'
+          openssl: '+with-openssl'
 
     steps:
 
