@@ -1,35 +1,32 @@
+/*
+ * Copyright: Copyright © 2021-2024 Lars Kuhtz <lakuhtz@gmail.com>
+ * License: MIT
+ * Maintainer: Lars Kuhtz <lakuhtz@gmail.com>
+ */
+
 #include <openssl/evp.h>
 #include "keccak.h"
 
 /* *************************************************************************** */
-/* OpenSSL Master */
-
-/*
-int main()
-{
-    int ok = 1;
-    unsigned int md_len = 0;
-    MD_VALUE md_value;
-    MD_VALUE_HEX result;
-    EVP_MD *md;
-    EVP_MD_CTX *ctx;
-
-    CHECKED(md = EVP_get_digestbyname("KECCAK-256"));
-    CHECKED(ctx = EVP_MD_CTX_new());
-    CHECKED(EVP_DigestInit(ctx, md));
-    CHECKED(EVP_DigestUpdate(ctx, msg, strlen(msg)));
-    CHECKED(EVP_DigestFinal(ctx, md_value, &md_len));
-
-    // Print Digest
-    digestToHex(result, md_value);
-    printf("Keccak-256 digest: %s\n", result);
-    printf("expected         : %s\n", expected);
-
-finally:
-    if (ctx) EVP_MD_CTX_free(ctx);
-    return ! ok;
-}
-*/
+/* Legacy support for Keccak for OpenSSL prior to version 3.2
+ *
+ * Support for Keccak-224, Keccak-256, Keccak-384, and Keccak-512 was added
+ * in OpenSSL version 3.2.
+ *
+ * History (cf. https://openssl.org/policies/releasestrat.html)
+ *
+ * - OpenSSL 1.1: Support ended 2023-09-11.
+ * - OpenSSL 3.0: Support ends 2026-09-07 (LTS).
+ * - OpenSSL 3.1: Support ends 2025-03-14.
+ * - OpenSSL 3.2: Native Keccak support added.
+ *
+ * This file also adds supports for those digests for OpenSSL versions 1.1
+ * onward.
+ *
+ * Keccak differs from NIST standardized SHA3 by using a different padding
+ * value. This implementation uses low-level internals of the SHA3
+ * implementation for overwriting the padding byte.
+ */
 
 /* *************************************************************************** */
 /* OpenSSL 1.1 and OpenSSL 3.0 */
@@ -77,101 +74,38 @@ finally:
 
 #define PAD_BYTE_OFFSET (25 * sizeof(uint64_t) + 3 * sizeof(size_t) + 1600/8 - 32)
 
-/* OPENSSL 3.1 */
-#if OPENSSL_VERSION_NUMBER >= 0x31000000L
-#define SET_PAD_BYTE
+/* OPENSSL 3.2 */
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 
-/* OPENSSL 3.0 */
+/* Keccak is supported directly in OpenSSL >= 2.3. No legacy implementation is
+ * provided in this case.
+ */
+
+/* OPENSSL 3.0 (use with algorithm name "SHA3") */
 #elif OPENSSL_VERSION_NUMBER >= 0x30000000L
 #define GET_CTX(ctx) (*(((uint8_t **) ctx) + 7))
 #define SET_PAD_BYTE (((uint8_t *) GET_CTX(ctx))[PAD_BYTE_OFFSET] = 0x01)
 
-/* OPENSSL 1.1 */
+/* OPENSSL 1.1 (use with algorithm name "SHA3") */
 #elif OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define GET_CTX(ctx) ((uint8_t *) EVP_MD_CTX_md_data(ctx))
 #define SET_PAD_BYTE (GET_CTX(ctx)[PAD_BYTE_OFFSET] = 0x01)
+
+#else
+#error "Unsupported OpenSSL version. Please install OpenSSL >= 1.1.0"
 
 #endif
 
 /* *************************************************************************** */
 /* Implementation */
 
-
-KECCAK256_CTX *keccak256_newctx()
-{
-    return EVP_MD_CTX_new();
-}
-
-KECCAK512_CTX *keccak512_newctx()
-{
-    return EVP_MD_CTX_new();
-}
-
-int keccak256_init(KECCAK256_CTX *ctx) {
+#if OPENSSL_VERSION_NUMBER < 0x30200000L
+int keccak_EVP_DigestInit_ex(EVP_MD_CTX *ctx, EVP_MD *md) {
     int ok = 1;
-    const EVP_MD *md = NULL;
-    CHECKED(md = EVP_get_digestbyname("SHA3-256"));
     CHECKED(EVP_DigestInit_ex(ctx, md, NULL));
     SET_PAD_BYTE;
 finally:
     return ok;
 }
-
-int keccak512_init(KECCAK512_CTX *ctx) {
-    int ok = 1;
-    const EVP_MD *md = NULL;
-    CHECKED(md = EVP_get_digestbyname("SHA3-512"));
-    CHECKED(EVP_DigestInit_ex(ctx, md, NULL));
-    SET_PAD_BYTE;
-finally:
-    return ok;
-}
-
-int keccak256_reset(KECCAK512_CTX *ctx) {
-    int ok = 1;
-    CHECKED(EVP_DigestInit_ex(ctx, NULL, NULL));
-    SET_PAD_BYTE;
-finally:
-    return ok;
-}
-
-int keccak512_reset(KECCAK512_CTX *ctx) {
-    int ok = 1;
-    CHECKED(EVP_DigestInit_ex(ctx, NULL, NULL));
-    SET_PAD_BYTE;
-finally:
-    return ok;
-}
-
-int keccak256_update(KECCAK256_CTX *ctx, const void *p, size_t l)
-{
-    return EVP_DigestUpdate(ctx, p, l);
-}
-
-int keccak512_update(KECCAK512_CTX *ctx, const void *p, size_t l)
-{
-    return EVP_DigestUpdate(ctx, p, l);
-}
-
-int keccak256_final(KECCAK256_CTX *ctx, unsigned char *md)
-{
-    unsigned int l;
-    return EVP_DigestFinal_ex(ctx, md, &l);
-}
-
-int keccak512_final(KECCAK512_CTX *ctx, unsigned char *md)
-{
-    unsigned int l;
-    return EVP_DigestFinal_ex(ctx, md, &l);
-}
-
-void keccak256_freectx(KECCAK256_CTX *ctx)
-{
-    return EVP_MD_CTX_free(ctx);
-}
-
-void keccak512_freectx(KECCAK512_CTX *ctx)
-{
-    return EVP_MD_CTX_free(ctx);
-}
+#endif
 

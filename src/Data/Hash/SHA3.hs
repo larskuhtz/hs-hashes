@@ -1,3 +1,5 @@
+{-# LANGUAGE ExplicitNamespaces #-}
+
 -- |
 -- Module: Data.Hash.SHA3
 -- Copyright: Copyright © 2021 Lars Kuhtz <lakuhtz@gmail.com>
@@ -20,7 +22,9 @@ module Data.Hash.SHA3
 , Sha3_384(..)
 , Sha3_512(..)
 , Shake128(..)
+, type Shake128_256
 , Shake256(..)
+, type Shake256_512
 
 , module Data.Hash.Class.Mutable
 ) where
