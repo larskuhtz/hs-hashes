@@ -118,6 +118,7 @@ test-suite tests
         other-modules:
             Test.Data.Hash.SHA2
             Test.Data.Hash.SHA3
+            Test.Data.Hash.Keccak
 
     if flag(test-cryptonite)
         build-depends:

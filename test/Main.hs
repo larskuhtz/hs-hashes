@@ -18,6 +18,7 @@ import qualified Test.Data.Hash.Class.Pure
 #if defined(WITH_OPENSSL)
 import qualified Test.Data.Hash.SHA2
 import qualified Test.Data.Hash.SHA3
+import qualified Test.Data.Hash.Keccak
 #endif
 
 #if defined(TEST_CRYPTONITE)
@@ -38,6 +39,7 @@ tests = do
 #if defined(WITH_OPENSSL)
     describe "Test.Data.Hash.SHA2" Test.Data.Hash.SHA2.tests
     describe "Test.Data.Hash.SHA3" Test.Data.Hash.SHA3.tests
+    describe "Test.Data.Hash.Keccak" Test.Data.Hash.Keccak.tests
 #endif
 
 #if defined(TEST_CRYPTONITE)
