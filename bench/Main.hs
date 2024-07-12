@@ -161,7 +161,7 @@ cryptonite b = BS.toShort $ BA.convert $! C.hash @_ @a b
 
 #if defined(WITH_OPENSSL)
 ossl :: forall a . Coercible a BS.ShortByteString => H.Hash a => B.ByteString -> BS.ShortByteString
-ossl b = coerce $! SHA3.hashByteString @a b
+ossl b = coerce $! SHA3.hashByteString_ @a b
 {-# INLINE ossl #-}
 #endif
 

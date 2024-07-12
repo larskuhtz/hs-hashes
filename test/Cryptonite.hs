@@ -9,7 +9,7 @@
 
 -- |
 -- Module: Cryptonite
--- Copyright: Copyright © 2021 Lars Kuhtz <lakuhtz@gmail.com>
+-- Copyright: Copyright © 2021-2024 Lars Kuhtz <lakuhtz@gmail.com>
 -- License: MIT
 -- Maintainer: Lars Kuhtz <lakuhtz@gmail.com>
 -- Stability: experimental
@@ -73,7 +73,7 @@ prop_eq b = internal === cryptonite
   where
     bytes = B.pack b
     cryptonite = BS.toShort $ BA.convert $ C.hash @_ @calg bytes
-    internal = coerce $ M.hashByteString @alg bytes
+    internal = coerce $ M.hashByteString_ @alg bytes
 #endif
 
 -- -------------------------------------------------------------------------- --

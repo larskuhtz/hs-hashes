@@ -43,7 +43,7 @@ tests = describe "SHA2 Test Vectors" $ do
     monteTests
 
 -- -------------------------------------------------------------------------- --
--- Msg Tests
+-- NIST Msg Tests
 
 shortMsgTests :: Spec
 shortMsgTests = describe "ShortMsg" $ do
@@ -71,7 +71,7 @@ runMsgTest
     -> Spec
 runMsgTest = msgAssert
     (\l a b -> it l (a == b))
-    (BS.fromShort . coerce . hashByteString @a)
+    (BS.fromShort . coerce . hashByteString_ @a)
 
 -- -------------------------------------------------------------------------- --
 -- Monte Tests
@@ -93,5 +93,5 @@ runMonteTest
     -> Spec
 runMonteTest = monteAssert
     (\l a b -> it l (a == b))
-    (BS.fromShort . coerce . hashByteString @a)
+    (BS.fromShort . coerce . hashByteString_ @a)
 

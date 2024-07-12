@@ -23,6 +23,22 @@ module Data.Hash.Class.Mutable.Salted
 , hashShortByteString
 , hashByteArray
 
+-- ** Pure variants of hash functions
+--
+-- The following pure variants of the hash functions are implemented with
+-- 'unsafePerformIO'. This is generally less efficient than running them
+-- directly in 'IO'. Often the performance difference does not matter. However,
+-- when many hashes are computed one should prefer the variants that run in
+-- 'IO'. When a 'ResetableHash' instance is available it provides the most
+-- efficient way to compute many hashes in a tight loop.
+
+, hashPtr_
+, hashStorable_
+, hashByteString_
+, hashByteStringLazy_
+, hashShortByteString_
+, hashByteArray_
+
 -- * Incremental Hashing
 , updateByteString
 , updateByteStringLazy
@@ -64,15 +80,15 @@ hashPtr k p n = do
     finalize ctx
 {-# INLINE hashPtr #-}
 
-hashByteString :: forall a . Hash a => Salt a -> B.ByteString -> a
-hashByteString k b = unsafeDupablePerformIO $ do
+hashByteString :: forall a . Hash a => Salt a -> B.ByteString -> IO a
+hashByteString k b = do
         ctx <- initialize @a k
         updateByteString @a ctx b
         finalize ctx
 {-# INLINE hashByteString #-}
 
-hashByteStringLazy :: forall a . Hash a => Salt a -> BL.ByteString -> a
-hashByteStringLazy k b = unsafeDupablePerformIO $ do
+hashByteStringLazy :: forall a . Hash a => Salt a -> BL.ByteString -> IO a
+hashByteStringLazy k b = do
         ctx <- initialize @a k
         updateByteStringLazy @a ctx b
         finalize ctx
@@ -98,4 +114,31 @@ hashByteArray k b = do
         updateByteArray @a ctx b
         finalize ctx
 {-# INLINE hashByteArray #-}
+
+-- -------------------------------------------------------------------------- --
+-- Pure variants
+
+hashPtr_ :: forall a . Hash a => Salt a -> Ptr Word8 -> Int -> a
+hashPtr_ s ptr = unsafePerformIO . hashPtr s ptr
+{-# INLINE hashPtr_ #-}
+
+hashByteString_ :: forall a . Hash a => Salt a -> B.ByteString -> a
+hashByteString_ s = unsafePerformIO . hashByteString s
+{-# INLINE hashByteString_ #-}
+
+hashByteStringLazy_ :: forall a . Hash a => Salt a -> BL.ByteString -> a
+hashByteStringLazy_ s = unsafePerformIO . hashByteStringLazy s
+{-# INLINE hashByteStringLazy_ #-}
+
+hashShortByteString_ :: forall a . Hash a => Salt a -> BS.ShortByteString -> a
+hashShortByteString_ s = unsafePerformIO . hashShortByteString s
+{-# INLINE hashShortByteString_ #-}
+
+hashStorable_ :: forall a b . Hash a => Storable b => Salt a -> b -> a
+hashStorable_ s = unsafePerformIO . hashStorable s
+{-# INLINE hashStorable_ #-}
+
+hashByteArray_ :: forall a . Hash a => Salt a -> ByteArray# -> a
+hashByteArray_ s a = unsafePerformIO $ hashByteArray s a
+{-# INLINE hashByteArray_ #-}
 
