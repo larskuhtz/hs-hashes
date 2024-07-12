@@ -11,43 +11,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: ['8.10.7', '9.0.2', '9.2']
-        cabal: ['3.8']
-        os: ['ubuntu-20.04', 'ubuntu-22.04']
-        cryptonite: ['-test-cryptonite -benchmark-cryptonite', '+test-cryptonite +benchmark-cryptonite']
-        openssl: [ '+with-openssl', '-with-openssl' ]
-        include:
-        - ghc: '9.0.2'
-          cabal: '3.8'
-          os: 'macOS-latest'
-          cryptonite: '+test-cryptonite +benchmark-cryptonite'
-          openssl: '+with-openssl'
-        - ghc: '8.10.7'
-          cabal: '3.8'
-          os: 'macOS-latest'
-          cryptonite: '+test-cryptonite +benchmark-cryptonite'
-          openssl: '+with-openssl'
+        ghc:
+        - '9.2'
+        - '9.4'
+        - '9.6'
+        - '9.10'
+        cabal:
+        - '3.12'
+        os:
+        - 'ubuntu-20.04'
+        - 'ubuntu-22.04'
+        - 'macos-latest'
+        cryptonite:
+        - '-test-cryptonite -benchmark-cryptonite'
+        - '+test-cryptonite +benchmark-cryptonite'
+        openssl:
+        - '+with-openssl'
+        - '-with-openssl'
 
     steps:
 
     # Setup
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Install GHC and Cabal
-      uses: haskell/actions/setup@v2.0.2
+      uses: haskell-actions/setup@v2
       with:
          ghc-version: ${{ matrix.ghc }}
          cabal-version: ${{ matrix.cabal }}
 
     # Restore Packages from Caches
-    - uses: actions/cache@v3
-      name: Cache dist-newstyle
+    - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cabal/packages
           ~/.cabal/store
           dist-newstyle
-        key: ${{ matrix.os }}-${{ matrix.ghc }}-0-cabal
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+        restore-keys: ${{ runner.os }}-${{ matrix.ghc }}-
 
     - name: Check OpenSSL Version
       run: |
