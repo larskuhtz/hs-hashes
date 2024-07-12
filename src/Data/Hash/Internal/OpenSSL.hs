@@ -371,7 +371,7 @@ foreign import ccall unsafe "keccak.h keccak_EVP_DigestInit_ex"
     c_keccak_EVP_DigestInit_ex :: Ptr ctx -> Ptr a -> IO Bool
 
 legacyKeccak_initCtx :: Algorithm a -> IO (Ctx a)
-legacyKeccak_initCtx a@(Algorithm alg) = do
+legacyKeccak_initCtx (Algorithm alg) = do
     c@(Ctx ctx) <- newCtx
     r <- withForeignPtr ctx $ \ctxPtr ->
         withForeignPtr alg $ \algPtr ->
