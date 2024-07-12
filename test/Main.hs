@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 -- |
 -- Module: Main
--- Copyright: Copyright © 2021 Lars Kuhtz <lakuhtz@gmail.com>
+-- Copyright: Copyright © 2021-2024 Lars Kuhtz <lakuhtz@gmail.com>
 -- License: MIT
 -- Maintainer: Lars Kuhtz <lakuhtz@gmail.com>
 -- Stability: experimental

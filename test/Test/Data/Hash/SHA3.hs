@@ -7,7 +7,7 @@
 
 -- |
 -- Module: Test.Data.Hash.SHA3
--- Copyright: Copyright © 2022 Kadena LLC.
+-- Copyright: Copyright © 2022-2024 Kadena LLC.
 -- License: MIT
 -- Maintainer: Lars Kuhtz <lars@kadena.io>
 -- Stability: experimental

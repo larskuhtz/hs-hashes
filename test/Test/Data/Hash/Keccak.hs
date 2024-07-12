@@ -8,7 +8,7 @@
 
 -- |
 -- Module: Test.Data.Hash.Keccak
--- Copyright: Copyright © 2022 Kadena LLC.
+-- Copyright: Copyright © 2024 Kadena LLC.
 -- License: MIT
 -- Maintainer: Lars Kuhtz <lars@kadena.io>
 -- Stability: experimental

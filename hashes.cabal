@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: hashes
-version: 0.2.3
+version: 0.3.0
 synopsis: Hash functions
 Description: Efficient implementations of hash functions
 homepage: https://github.com/larskuhtz/hs-hashes
@@ -9,15 +9,17 @@ license: MIT
 license-file: LICENSE
 author: Lars Kuhtz
 maintainer: lakuhtz@gmail.com
-copyright: Copyright (c) 2019-2021 Lars Kuhtz <lakuhtz@gmail.com>
+copyright: Copyright (c) 2019-2024 Lars Kuhtz <lakuhtz@gmail.com>
 category: Data
 tested-with:
+    GHC==9.10
+    GHC==9.6
+    GHC==9.4
     GHC==9.2
-    GHC==9.0.1
-    GHC==8.10.7
-extra-source-files:
+extra-doc-files:
     README.md
     CHANGELOG.md
+extra-source-files:
     cbits/keccak.h
     cbits/keccak.c
 

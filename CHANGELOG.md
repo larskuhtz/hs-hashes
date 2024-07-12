@@ -1,5 +1,26 @@
 # Revision history for the hashes package
 
+## 0.3.0 -- 2024-07-12
+
+Breaking Changes:
+
+*   Add type type parameter to support different output sizes for `Shake128` and
+    `Shake256`.
+*   Hash functions in `Data.Hash.Class.Mutable` and
+    `Data.Hash.Class.Mutable.Salted` now run in `IO`, which is generally more
+    efficient than a pure computation within `unsafePerformIO`. The modules also
+    provide pure variants of the hash functions that can be used when the
+    performance overhead of `unsafePerformIO` does not matter.
+*   Drop support for OpenSSL < 1.1.
+
+Other Changes:
+
+*   Add support for Keccak224, Keccak384, Shake128/256,and Shake256/512.
+*   Improved test coverage for OpenSSL based hashes.
+*   Avoid deprecated API calls in the implementation of OpenSSL based hashes.
+*   Add an IsString instance for OpenSSL based digests that uses hex encoding.
+*   Improve heuristics for locating libcrypt on macOS.
+
 ## 0.2.3 -- 2022-11-22
 
 *   Support reset and reuse of context for OpenSSL digests.

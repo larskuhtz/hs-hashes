@@ -18,7 +18,7 @@ The following hash functions are available with the package is build with
 `-f+with-openssl`, which is the default.
 
 A version of OpenSSL of at least version 1.1 must be available on the system at
-a location for Cabal/GHC can find it.
+a location where Cabal/GHC can find it.
 
 *   SHA2
     *   SHA2-224
@@ -32,14 +32,17 @@ a location for Cabal/GHC can find it.
     *   SHA3_256
     *   SHA3_384
     *   SHA3_512
-    *   SHAKE-128
-    *   SHAKE-256
+    *   SHAKE-128_256
+    *   SHAKE-256_512
+    *   SHAKE-128 (custom output size)
+    *   SHAKE-256 (custom output size)
 *   BLAKE2
     *   BLAKE2s256
     *   BLAKE2b512
 *   KECCAK
+    *   KECCAK-224
     *   KECCAK-256
+    *   KECCAK-384
     *   KECCAK-512
-    See comment in [Data.Hash.Keccak](https://github.com/larskuhtz/hs-hashes/blob/main/src/Data/Hash/Keccak.hs) before using these Keccak implementations.
 
 
