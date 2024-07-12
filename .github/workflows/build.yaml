@@ -84,11 +84,9 @@ jobs:
         path: |
           ~/.cabal/packages
           ~/.cabal/store
-        key: deps-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.local') }}
+        key: deps-${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.local') }}
         restore-keys: |
-          deps-${{ runner.os }}-${{ matrix.ghc }}-
-          ${{ runner.os }}-${{ matrix.ghc }}-
-        # the second restore key is temporary
+          deps-${{ matrix.os }}-${{ matrix.ghc }}-
 
     # Restore dist-newstyle
     - name: Cache dist-newstyle
@@ -96,11 +94,9 @@ jobs:
       with:
         path: |
           dist-newstyle
-        key: dist-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.local') }}
+        key: dist-${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.local') }}
         restore-keys: |
-          dist-${{ runner.os }}-${{ matrix.ghc }}-
-          ${{ runner.os }}-${{ matrix.ghc }}-
-        # the second restore key is temporary
+          dist-${{ matrix.os }}-${{ matrix.ghc }}-
         save-always: true
 
     # Build
