@@ -32,7 +32,7 @@ import Data.Hash.SipHash
 -- Utils
 
 bytesToWord64:: [Word8] -> Word64
-bytesToWord64 l = unsafePerformIO $
+bytesToWord64 l = unsafeDupablePerformIO $
     B.useAsCStringLen (B.pack l) $ \(b, _) -> peek @Word64 (castPtr b)
 
 -- -------------------------------------------------------------------------- --
