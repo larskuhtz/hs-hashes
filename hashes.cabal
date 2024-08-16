@@ -75,6 +75,12 @@ library
         Data.Hash.FNV1.Salted
         Data.Hash.Internal.Utils
         Data.Hash.SipHash
+    -- this allows us to #include <opensslv.h> on Gentoo
+    -- from a Haskell file
+    if arch(x86_64)
+        cpp-options: -D__x86_64__
+    if arch(aarch64)
+        cpp-options: -D__aarch64__
     if flag(with-openssl)
         exposed-modules:
             Data.Hash.Blake2
@@ -155,4 +161,3 @@ benchmark benchmarks
             , memory >=0.14
             , cryptonite >=0.29
         cpp-options: -DBENCHMARK_CRYPTONITE=1
-
