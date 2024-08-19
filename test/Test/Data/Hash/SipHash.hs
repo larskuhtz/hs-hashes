@@ -22,7 +22,7 @@ import Foreign
 
 import System.IO.Unsafe
 
-import Test.Syd
+import Test.Hspec
 
 -- internal modules
 

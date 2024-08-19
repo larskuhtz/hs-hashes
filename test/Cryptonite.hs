@@ -34,8 +34,9 @@ import qualified Data.ByteArray.Hash as BA
 import qualified Data.ByteString as B
 import Data.Word
 
+import Test.Hspec
+import Test.Hspec.QuickCheck
 import Test.QuickCheck
-import Test.Syd
 
 -- internal modules
 

@@ -25,13 +25,13 @@ import qualified Test.Data.Hash.Keccak
 import qualified Cryptonite
 #endif
 
-import Test.Syd
+import Test.Hspec
 
 main :: IO ()
-main = sydTest tests
+main = hspec tests
 
 tests :: Spec
-tests = do
+tests = parallel $ do
     describe "Test.Data.Hash.FNV1.tests" Test.Data.Hash.FNV1.tests
     describe "Test.Data.Hash.SipHash.tests" Test.Data.Hash.SipHash.tests
     describe "Test.Data.Hash.Class.Pure" Test.Data.Hash.Class.Pure.tests

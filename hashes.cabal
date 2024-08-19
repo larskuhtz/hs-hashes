@@ -107,10 +107,10 @@ test-suite tests
         -- internal
         , hashes
         -- external
-        , QuickCheck >= 2.13
+        , QuickCheck >=2.13
         , base >=4.11 && <5
         , bytestring >=0.10
-        , sydtest >=0.4
+        , hspec >=2.11
         , vector >=0.12
 
     if flag(with-openssl)
