@@ -100,7 +100,7 @@
 /* Implementation */
 
 #if OPENSSL_VERSION_NUMBER < 0x30200000L
-int keccak_EVP_DigestInit_ex(EVP_MD_CTX *ctx, EVP_MD *md) {
+int keccak_EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *md) {
     int ok = 1;
     CHECKED(EVP_DigestInit_ex(ctx, md, NULL));
     SET_PAD_BYTE;

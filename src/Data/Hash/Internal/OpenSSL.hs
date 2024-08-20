@@ -13,6 +13,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+#if !MIN_VERSION_base(4,18,0)
+{-# LANGUAGE PatternSynonyms #-}
+#endif
+
 #include <openssl/opensslv.h>
 
 -- |
@@ -98,7 +102,13 @@ import Data.Typeable
 import Data.Void
 import Data.Word
 
-import Foreign.C.String (CString, withCString)
+#if MIN_VERSION_base(4,18,0)
+import Foreign.C.ConstPtr (ConstPtr(..))
+import Foreign.C.String (withCString)
+#else
+import Foreign.C.String(CString, withCString)
+#endif
+import Foreign.C.Types
 import Foreign.ForeignPtr
 import Foreign.Marshal
 import Foreign.Ptr
@@ -141,6 +151,28 @@ newtype OpenSslException = OpenSslException String
 instance Exception OpenSslException
 
 -- -------------------------------------------------------------------------- --
+-- Utils for ConstPtr
+
+#if MIN_VERSION_base(4,18,0)
+type ConstCString = ConstPtr CChar
+#else
+type ConstPtr a = Ptr a
+type ConstCString = CString
+
+pattern ConstPtr :: forall p. p -> p
+pattern ConstPtr a = a
+#endif
+
+withConstCString :: String -> (ConstCString -> IO a) -> IO a
+withConstCString str inner = withCString str $ \cstr -> inner (ConstPtr cstr)
+
+constPtr :: Addr# -> ConstPtr a
+constPtr a = ConstPtr (Ptr a)
+
+nullConstPtr :: ConstPtr a
+nullConstPtr = ConstPtr nullPtr
+
+-- -------------------------------------------------------------------------- --
 -- OpenSSL Message Digest Algorithms
 
 -- | An algorithm implementation from an OpenSSL algorithm provider.
@@ -172,7 +204,7 @@ class OpenSslDigest a where
 -- identifier, and the search criteria.
 --
 foreign import ccall unsafe "openssl/evp.h EVP_MD_fetch"
-    c_evp_md_fetch :: Ptr Void {- nullPtr -} -> CString -> CString -> IO (Ptr a)
+    c_evp_md_fetch :: Ptr Void {- nullPtr -} -> ConstCString -> ConstCString -> IO (Ptr a)
 
 foreign import ccall unsafe "openssl/evp.h &EVP_MD_free"
     c_evp_md_free :: FunPtr (Ptr a -> IO ())
@@ -187,14 +219,14 @@ foreign import ccall unsafe "openssl/evp.h &EVP_MD_free"
 --
 fetchAlgorithm :: String -> IO (Algorithm a)
 fetchAlgorithm name = do
-    withCString name $ \namePtr -> mask_ $ do
-        ptr <- c_evp_md_fetch nullPtr namePtr (Ptr "provider=default"#)
+    withConstCString name $ \namePtr -> mask_ $ do
+        ptr <- c_evp_md_fetch nullPtr namePtr (constPtr "provider=default"#)
         when (ptr == nullPtr) $ throw $ OpenSslException $ "fetching algorithm failed: " <> name
         Algorithm <$> newForeignPtr c_evp_md_free ptr
 #else
 
 foreign import ccall unsafe "openssl/evp.h EVP_get_digestbyname"
-    c_EVP_get_digestbyname :: CString -> IO (Ptr a)
+    c_EVP_get_digestbyname :: ConstCString -> IO (ConstPtr a)
 
 -- | Look up the 'Algorithm' with given identifier. This is a less efficient
 -- legacy way to obtain algorithm implementations. The returned algorithms
@@ -205,8 +237,8 @@ foreign import ccall unsafe "openssl/evp.h EVP_get_digestbyname"
 --
 fetchAlgorithm :: String -> IO (Algorithm a)
 fetchAlgorithm name = do
-    withCString name $ \namePtr -> mask_ $ do
-        ptr <- c_EVP_get_digestbyname namePtr
+    withConstCString name $ \namePtr -> mask_ $ do
+        ConstPtr ptr <- c_EVP_get_digestbyname namePtr
         when (ptr == nullPtr) $ throw $ OpenSslException $ "fetching algorithm failed: " <> name
         Algorithm <$> newForeignPtr_ ptr
 #endif
@@ -240,27 +272,27 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex2"
 #else
 foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex"
 #endif
-    c_evp_digest_init :: Ptr ctx -> Ptr alg -> Ptr Void {- nullPtr -} -> IO Bool
+    c_evp_digest_init :: Ptr ctx -> ConstPtr alg -> Ptr Void {- nullPtr -} -> IO CInt
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate"
-    c_evp_digest_update :: Ptr ctx -> Ptr d -> Int -> IO Bool
+    c_evp_digest_update :: Ptr ctx -> ConstPtr d -> CSize -> IO CInt
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex"
-    c_evp_digest_final :: Ptr ctx -> Ptr d -> Ptr Int -> IO Bool
+    c_evp_digest_final :: Ptr ctx -> Ptr CUChar -> Ptr CUInt -> IO CInt
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_get0_md"
 #else
 foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_md"
 #endif
-    c_evp_md_ctx_get0_md :: Ptr ctx -> Ptr a
+    c_evp_md_ctx_get0_md :: ConstPtr ctx -> ConstPtr a
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 foreign import ccall unsafe "openssl/evp.h EVP_MD_get_size"
 #else
 foreign import ccall unsafe "openssl/evp.h EVP_MD_size"
 #endif
-    c_evp_md_get_size :: Ptr a -> Int
+    c_evp_md_get_size :: ConstPtr a -> CInt
 
 newCtx :: IO (Ctx a)
 newCtx = mask_ $ do
@@ -277,8 +309,8 @@ initCtx (Algorithm alg) = do
     c@(Ctx ctx) <- newCtx
     r <- withForeignPtr ctx $ \ctxPtr ->
         withForeignPtr alg $ \algPtr ->
-            c_evp_digest_init ctxPtr algPtr nullPtr
-    unless r $ throw $ OpenSslException "digest initialization failed"
+            c_evp_digest_init ctxPtr (ConstPtr algPtr) nullPtr
+    when (r == 0) $ throw $ OpenSslException "digest initialization failed"
     return c
 {-# INLINE initCtx #-}
 
@@ -287,27 +319,27 @@ initCtx (Algorithm alg) = do
 resetCtx :: Ctx a -> IO ()
 resetCtx (Ctx ctx) = do
     r <- withForeignPtr ctx $ \ptr ->
-        c_evp_digest_init ptr nullPtr nullPtr
-    unless r $ throw $ OpenSslException "digest re-initialization failed"
+        c_evp_digest_init ptr nullConstPtr nullPtr
+    when (r == 0) $ throw $ OpenSslException "digest re-initialization failed"
 {-# INLINE resetCtx #-}
 
 -- | Feed more data into an context.
 --
 updateCtx :: Ctx a -> Ptr Word8 -> Int -> IO ()
 updateCtx (Ctx ctx) d c = withForeignPtr ctx $ \ptr -> do
-    r <- c_evp_digest_update ptr d c
-    unless r $ throw $ OpenSslException "digest update failed"
+    r <- c_evp_digest_update ptr (ConstPtr d) (fromIntegral c)
+    when (r == 0) $ throw $ OpenSslException "digest update failed"
 {-# INLINE updateCtx #-}
 
 -- | Finalize a hash and return the digest.
 --
 finalCtx :: Ctx a -> IO (Digest a)
 finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
-    let s = c_evp_md_get_size (c_evp_md_ctx_get0_md ptr)
+    let s = fromIntegral $ c_evp_md_get_size (c_evp_md_ctx_get0_md (ConstPtr ptr))
     allocaBytes s $ \dptr -> do
         r <- c_evp_digest_final ptr dptr nullPtr
-        unless r $ throw $ OpenSslException "digest finalization failed"
-        Digest <$> BS.packCStringLen (dptr, s)
+        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
+        Digest <$> BS.packCStringLen (castPtr dptr, s)
 {-# INLINE finalCtx #-}
 
 -- -------------------------------------------------------------------------- --
@@ -337,16 +369,16 @@ newtype XOF_Digest (n :: Natural) a = XOF_Digest BS.ShortByteString
     deriving (Show, IsString) via B16ShortByteString
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinalXOF"
-    c_EVP_DigestFinalXOF :: Ptr ctx -> Ptr d -> Int -> IO Bool
+    c_EVP_DigestFinalXOF :: Ptr ctx -> Ptr CUChar -> CSize -> IO CInt
 
 -- | Finalize an XOF based hash and return the digest.
 --
 xof_finalCtx :: forall n a . KnownNat n => Ctx a -> IO (XOF_Digest n a)
 xof_finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
     allocaBytes s $ \dptr -> do
-        r <- c_EVP_DigestFinalXOF ptr dptr s
-        unless r $ throw $ OpenSslException "digest finalization failed"
-        XOF_Digest <$> BS.packCStringLen (dptr, s)
+        r <- c_EVP_DigestFinalXOF ptr dptr (fromIntegral s)
+        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
+        XOF_Digest <$> BS.packCStringLen (castPtr dptr, s)
   where
     s = fromIntegral $ natVal' @n proxy#
 {-# INLINE xof_finalCtx #-}
@@ -368,23 +400,23 @@ newtype LegacyKeccak_Digest a = LegacyKeccak_Digest BS.ShortByteString
     deriving (Show, IsString) via B16ShortByteString
 
 foreign import ccall unsafe "keccak.h keccak_EVP_DigestInit_ex"
-    c_keccak_EVP_DigestInit_ex :: Ptr ctx -> Ptr a -> IO Bool
+    c_keccak_EVP_DigestInit_ex :: Ptr ctx -> ConstPtr a -> IO CInt
 
 legacyKeccak_initCtx :: Algorithm a -> IO (Ctx a)
 legacyKeccak_initCtx (Algorithm alg) = do
     c@(Ctx ctx) <- newCtx
     r <- withForeignPtr ctx $ \ctxPtr ->
         withForeignPtr alg $ \algPtr ->
-            c_keccak_EVP_DigestInit_ex ctxPtr algPtr
-    unless r $ throw $ OpenSslException "digest initialization failed"
+            c_keccak_EVP_DigestInit_ex ctxPtr (ConstPtr algPtr)
+    when (r == 0) $ throw $ OpenSslException "digest initialization failed"
     return c
 {-# INLINE legacyKeccak_initCtx #-}
 
 legacyKeccak_resetCtx :: Ctx a -> IO ()
 legacyKeccak_resetCtx (Ctx ctx) = do
     r <- withForeignPtr ctx $ \ptr ->
-        c_keccak_EVP_DigestInit_ex ptr nullPtr
-    unless r $ throw $ OpenSslException "digest re-initialization failed"
+        c_keccak_EVP_DigestInit_ex ptr nullConstPtr
+    when (r == 0) $ throw $ OpenSslException "digest re-initialization failed"
 {-# INLINE legacyKeccak_resetCtx #-}
 
 instance OpenSslDigest a => Hash (LegacyKeccak_Digest a) where
@@ -641,8 +673,8 @@ instance OpenSslDigest Keccak512 where algorithm = keccak_512
 finalizeKeccak256Ptr :: Ctx Keccak256 -> Ptr Word8 -> IO ()
 finalizeKeccak256Ptr (Ctx ctx) dptr =
     withForeignPtr ctx $ \cptr -> do
-        r <- c_evp_digest_final cptr dptr nullPtr
-        unless r $ throw $ OpenSslException "digest finalization failed"
+        r <- c_evp_digest_final cptr (castPtr dptr) nullPtr
+        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
 {-# INLINE finalizeKeccak256Ptr #-}
 
 -- | Low-Level function that writes the final digest directly into the provided
@@ -653,8 +685,8 @@ finalizeKeccak256Ptr (Ctx ctx) dptr =
 finalizeKeccak512Ptr :: Ctx Keccak512 -> Ptr Word8 -> IO ()
 finalizeKeccak512Ptr (Ctx ctx) dptr = do
     withForeignPtr ctx $ \cptr -> do
-        r <- c_evp_digest_final cptr dptr nullPtr
-        unless r $ throw $ OpenSslException "digest finalization failed"
+        r <- c_evp_digest_final cptr (castPtr dptr) nullPtr
+        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
 {-# INLINE finalizeKeccak512Ptr #-}
 
 -- -------------------------------------------------------------------------- --
