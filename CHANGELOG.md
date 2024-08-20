@@ -1,5 +1,14 @@
 # Revision history for the hashes package
 
+## 0.3.0.1 -- 2024-08-20
+
+*   Fix building the package on Gentoo.
+
+Internal Changes:
+
+*   Replace the Syd test framework by hspec.
+*   Modernize the FFI interface with OpenSSL.
+
 ## 0.3.0 -- 2024-07-12
 
 Breaking Changes:
