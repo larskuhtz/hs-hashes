@@ -26,7 +26,7 @@ module Test.Data.Hash.SHA2
 import qualified Data.ByteString.Short as BS
 import Data.Coerce
 
-import Test.Syd
+import Test.Hspec
 import Test.Hash.SHA
 
 -- internal modules

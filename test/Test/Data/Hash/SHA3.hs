@@ -27,7 +27,7 @@ module Test.Data.Hash.SHA3
 import qualified Data.ByteString.Short as BS
 import Data.Coerce
 
-import Test.Syd
+import Test.Hspec
 import Test.Hash.SHA3
 
 -- internal modules
@@ -65,7 +65,7 @@ trivial = describe "trivial hashes" $ do
         => Coercible a B16ShortByteString
         => String
         -> a
-        -> TestDefM '[] () ()
+        -> Spec
     go l b = do
         it l $ shouldBe (hashShortByteString_ @a "") b
 

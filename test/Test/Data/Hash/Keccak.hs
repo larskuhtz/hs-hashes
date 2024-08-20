@@ -22,8 +22,8 @@ import Data.ByteString.Short qualified as BS
 import Data.Coerce
 import Data.String
 
+import Test.Hspec
 import Test.QuickCheck
-import Test.Syd
 
 -- internal modules
 
@@ -97,7 +97,7 @@ succeed
     => Coercible a B16ShortByteString
     => B16ShortByteString
     -> a
-    -> TestDefM '[] () ()
+    -> Spec
 succeed a b = do
     it (show a) $ shouldBe (hashShortByteString_ @a $ coerce a) b
 
@@ -109,7 +109,7 @@ failTest
     => Coercible a B16ShortByteString
     => B16ShortByteString
     -> a
-    -> TestDefM '[] () ()
+    -> Spec
 failTest a b = do
     it (show a) $ shouldNotBe (hashShortByteString_ @a $ coerce a) b
 

@@ -32,8 +32,9 @@ import GHC.Exts
 import GHC.IO
 import GHC.Word
 
+import Test.Hspec
+import Test.Hspec.QuickCheck
 import Test.QuickCheck
-import Test.Syd
 
 -- internal modules
 
