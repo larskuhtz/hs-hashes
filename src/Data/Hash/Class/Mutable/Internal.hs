@@ -1,11 +1,13 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
-{-# LANGUAGE ImportQualifiedPost #-}
 
 -- |
 -- Module: Data.Hash.Class.Mutable.Internal
@@ -20,6 +22,7 @@ module Data.Hash.Class.Mutable.Internal
 (
 -- * Incremental Hashes
   IncrementalHash(..)
+, digestSize
 , updateByteString
 , updateByteStringLazy
 , updateShortByteString
@@ -45,12 +48,16 @@ import Foreign.Storable
 
 import GHC.Exts
 import GHC.IO
+import GHC.TypeNats
 
 -- -------------------------------------------------------------------------- --
 -- Incremental Mutable Hashes
 
-class IncrementalHash a where
+class KnownNat (DigestSize a) => IncrementalHash a where
     type Context a :: Type
+
+    -- | Size of the Digest in Bytes
+    type DigestSize a :: Natural
 
     -- | It is responsibility of the caller to ensure that the pointer stays
     -- alive and valid until the function returns.
@@ -100,6 +107,9 @@ class IncrementalHash a where
     finalize :: Context a -> IO a
 
     {-# MINIMAL (updatePtr | update#), finalize #-}
+
+digestSize :: forall a n . IncrementalHash a => Num n => n
+digestSize = fromIntegral $ natVal' @(DigestSize a) proxy#
 
 updateByteString
     :: forall a

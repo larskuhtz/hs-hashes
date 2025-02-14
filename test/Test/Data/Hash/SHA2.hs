@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -23,7 +24,8 @@ module Test.Data.Hash.SHA2
 ( tests
 ) where
 
-import qualified Data.ByteString.Short as BS
+import Data.ByteString qualified as B
+import Data.ByteString.Short qualified as BS
 import Data.Coerce
 
 import Test.Hspec
@@ -70,7 +72,7 @@ runMsgTest
     => MsgFile
     -> Spec
 runMsgTest = msgAssert
-    (\l a b -> it l (a == b))
+    (\l a b -> it l (a == b && B.length a == digestSize @a))
     (BS.fromShort . coerce . hashByteString_ @a)
 
 -- -------------------------------------------------------------------------- --
@@ -92,6 +94,6 @@ runMonteTest
     => MonteFile
     -> Spec
 runMonteTest = monteAssert
-    (\l a b -> it l (a == b))
+    (\l a b -> it l (a == b && B.length a == digestSize @a))
     (BS.fromShort . coerce . hashByteString_ @a)
 

@@ -63,8 +63,9 @@ badExamples256 = describe "bad example hashes fail" $ do
 
 correctKeccakVersion :: Spec
 correctKeccakVersion = describe "correct Keccak version" $ do
-    it "is 32 bytes long" $
-        shouldBe (BS.length (coerce (hashByteString_ @Keccak256 ""))) 32
+    it "is 32 bytes long" $ do
+        shouldBe (digestSize @Keccak256) (32 :: Int)
+        shouldBe (BS.length (coerce (hashByteString_ @Keccak256 ""))) (digestSize @Keccak256)
     describe "Keccak256 is not SHA3" $ do
         failTest @Sha3_256 "" "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
         failTest @Sha3_256 "1234" "56570de287d73cd1cb6092bb8fdee6173974955fdef345ae579ee9f475ea7432"

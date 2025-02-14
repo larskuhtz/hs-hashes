@@ -63,12 +63,17 @@ trivial = describe "trivial hashes" $ do
         => Eq a
         => Show a
         => Coercible a B16ShortByteString
+        => Coercible a BS.ShortByteString
         => String
         -> a
         -> Spec
     go l b = do
-        it l $ shouldBe (hashShortByteString_ @a "") b
-
+        it l $
+            shouldBe h b
+        it (l <> " digest size") $
+            shouldBe (BS.length $ coerce h) (digestSize @a)
+      where
+        h = hashShortByteString_ @a ""
 
 -- -------------------------------------------------------------------------- --
 -- Msg Tests

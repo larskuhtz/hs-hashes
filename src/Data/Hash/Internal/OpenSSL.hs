@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
@@ -190,7 +191,8 @@ newtype Algorithm a = Algorithm (ForeignPtr Void)
 instance Typeable a => Show (Algorithm a) where
     show _ = show (typeRep (Nothing @a))
 
-class OpenSslDigest a where
+class KnownNat (OpenSslDigestSize a) => OpenSslDigest a where
+    type OpenSslDigestSize a :: Natural
     algorithm :: Algorithm a
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -369,15 +371,16 @@ instance OpenSslDigest a => Hash (Digest a) where
     initialize = initCtx (algorithm @a)
     {-# INLINE initialize #-}
 
-instance IncrementalHash (Digest a) where
+instance OpenSslDigest a => IncrementalHash (Digest a) where
     type Context (Digest a) = Ctx a
+    type DigestSize (Digest a) = OpenSslDigestSize a
     updatePtr = updateCtx
     update# = updateCtx#
     finalize = finalCtx
     {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
-instance ResetableHash (Digest a) where
+instance OpenSslDigest a => ResetableHash (Digest a) where
     reset = resetCtx
     {-# INLINE reset #-}
 
@@ -414,6 +417,7 @@ xof_finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
 
 instance KnownNat n => IncrementalHash (XOF_Digest n a) where
     type Context (XOF_Digest n a) = Ctx a
+    type DigestSize (XOF_Digest n a) = n
     updatePtr = updateCtx
     update# = updateCtx#
     finalize = xof_finalCtx
@@ -508,37 +512,49 @@ newtype Sha2_224 = Sha2_224 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_224)
-instance OpenSslDigest Sha2_224 where algorithm = sha2_224
+instance OpenSslDigest Sha2_224 where
+    type OpenSslDigestSize Sha2_224 = 28
+    algorithm = sha2_224
 
 newtype Sha2_256 = Sha2_256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_256)
-instance OpenSslDigest Sha2_256 where algorithm = sha2_256
+instance OpenSslDigest Sha2_256 where
+    type OpenSslDigestSize Sha2_256 = 32
+    algorithm = sha2_256
 
 newtype Sha2_384 = Sha2_384 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_384)
-instance OpenSslDigest Sha2_384 where algorithm = sha2_384
+instance OpenSslDigest Sha2_384 where
+    type OpenSslDigestSize Sha2_384 = 48
+    algorithm = sha2_384
 
 newtype Sha2_512 = Sha2_512 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_512)
-instance OpenSslDigest Sha2_512 where algorithm = sha2_512
+instance OpenSslDigest Sha2_512 where
+    type OpenSslDigestSize Sha2_512 = 64
+    algorithm = sha2_512
 
 newtype Sha2_512_224 = Sha2_512_224 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_512_224)
-instance OpenSslDigest Sha2_512_224 where algorithm = sha2_512_224
+instance OpenSslDigest Sha2_512_224 where
+    type OpenSslDigestSize Sha2_512_224 = 28
+    algorithm = sha2_512_224
 
 newtype Sha2_512_256 = Sha2_512_256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_512_256)
-instance OpenSslDigest Sha2_512_256 where algorithm = sha2_512_256
+instance OpenSslDigest Sha2_512_256 where
+    type OpenSslDigestSize Sha2_512_256 = 32
+    algorithm = sha2_512_256
 
 -- -------------------------------------------------------------------------- --
 -- SHA-3
@@ -582,37 +598,49 @@ newtype Sha3_224 = Sha3_224 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_224)
-instance OpenSslDigest Sha3_224 where algorithm = sha3_224
+instance OpenSslDigest Sha3_224 where
+    type OpenSslDigestSize Sha3_224 = 28
+    algorithm = sha3_224
 
 newtype Sha3_256 = Sha3_256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_256)
-instance OpenSslDigest Sha3_256 where algorithm = sha3_256
+instance OpenSslDigest Sha3_256 where
+    type OpenSslDigestSize Sha3_256 = 32
+    algorithm = sha3_256
 
 newtype Sha3_384 = Sha3_384 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_384)
-instance OpenSslDigest Sha3_384 where algorithm = sha3_384
+instance OpenSslDigest Sha3_384 where
+    type OpenSslDigestSize Sha3_384 = 48
+    algorithm = sha3_384
 
 newtype Sha3_512 = Sha3_512 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_512)
-instance OpenSslDigest Sha3_512 where algorithm = sha3_512
+instance OpenSslDigest Sha3_512 where
+    type OpenSslDigestSize Sha3_512 = 64
+    algorithm = sha3_512
 
 newtype Shake128 (bits :: Natural) = Shake128 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (XOF_Digest bits (Shake128 bits))
-instance OpenSslDigest (Shake128 n) where algorithm = shake128
+instance KnownNat n => OpenSslDigest (Shake128 n) where
+    type OpenSslDigestSize (Shake128 n) = n
+    algorithm = shake128
 
 newtype Shake256 (bits :: Natural) = Shake256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (XOF_Digest bits (Shake256 bits))
-instance OpenSslDigest (Shake256 n) where algorithm = shake256
+instance KnownNat n => OpenSslDigest (Shake256 n) where
+    type OpenSslDigestSize (Shake256 n) = n
+    algorithm = shake256
 
 type Shake128_256 = Shake128 32
 type Shake256_512 = Shake256 64
@@ -675,25 +703,33 @@ newtype Keccak224 = Keccak224 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak224)
-instance OpenSslDigest Keccak224 where algorithm = keccak_224
+instance OpenSslDigest Keccak224 where
+    type OpenSslDigestSize Keccak224 = 28
+    algorithm = keccak_224
 
 newtype Keccak256 = Keccak256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak256)
-instance OpenSslDigest Keccak256 where algorithm = keccak_256
+instance OpenSslDigest Keccak256 where
+    type OpenSslDigestSize Keccak256 = 32
+    algorithm = keccak_256
 
 newtype Keccak384 = Keccak384 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak384)
-instance OpenSslDigest Keccak384 where algorithm = keccak_384
+instance OpenSslDigest Keccak384 where
+    type OpenSslDigestSize Keccak384 = 48
+    algorithm = keccak_384
 
 newtype Keccak512 = Keccak512 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak512)
-instance OpenSslDigest Keccak512 where algorithm = keccak_512
+instance OpenSslDigest Keccak512 where
+    type OpenSslDigestSize Keccak512 = 64
+    algorithm = keccak_512
 
 -- | Low-Level function that writes the final digest directly into the provided
 -- pointer. The pointer must point to at least 64 bytes of allocated memory.
@@ -753,11 +789,15 @@ newtype Blake2b512 = Blake2b512 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash) via (Digest Blake2b512)
-instance OpenSslDigest Blake2b512 where algorithm = blake2b512
+instance OpenSslDigest Blake2b512 where
+    type OpenSslDigestSize Blake2b512 = 64
+    algorithm = blake2b512
 
 newtype Blake2s256 = Blake2s256 BS.ShortByteString
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash) via (Digest Blake2s256)
-instance OpenSslDigest Blake2s256 where algorithm = blake2s256
+instance OpenSslDigest Blake2s256 where
+    type OpenSslDigestSize Blake2s256 = 32
+    algorithm = blake2s256
 

@@ -1,8 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ExplicitNamespaces #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ImportQualifiedPost #-}
 
 -- |
 -- Module: Data.Hash.Class.Mutable
@@ -16,6 +17,7 @@
 module Data.Hash.Class.Mutable
 ( Hash(..)
 , IncrementalHash(..)
+, digestSize
 
 -- * Hash functions
 , hashPtr
