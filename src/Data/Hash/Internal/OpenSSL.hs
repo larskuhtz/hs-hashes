@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -11,7 +12,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UnliftedFFITypes #-}
 
 #if !MIN_VERSION_base(4,18,0)
 {-# LANGUAGE PatternSynonyms #-}
@@ -110,7 +113,6 @@ import Foreign.C.String(CString, withCString)
 #endif
 import Foreign.C.Types
 import Foreign.ForeignPtr
-import Foreign.Marshal
 import Foreign.Ptr
 
 import GHC.Exts
@@ -277,8 +279,11 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex"
 foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate"
     c_evp_digest_update :: Ptr ctx -> ConstPtr d -> CSize -> IO CInt
 
+foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate"
+    c_evp_digest_update_ba :: Ptr ctx -> ByteArray# -> CSize -> IO CInt
+
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex"
-    c_evp_digest_final :: Ptr ctx -> Ptr CUChar -> Ptr CUInt -> IO CInt
+    c_evp_digest_final :: Ptr ctx -> MutableByteArray# s -> Ptr CUInt -> IO CInt
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_get0_md"
@@ -331,15 +336,30 @@ updateCtx (Ctx ctx) d c = withForeignPtr ctx $ \ptr -> do
     when (r == 0) $ throw $ OpenSslException "digest update failed"
 {-# INLINE updateCtx #-}
 
+-- | Feed more data into an context from an possibly unpinned ByteArray without
+-- copying the content.
+--
+updateCtx# :: Ctx a -> ByteArray# -> IO ()
+updateCtx# (Ctx ctx) arr = withForeignPtr ctx $ \ptr -> do
+    let !c = I# $ sizeofByteArray# arr
+    r <- c_evp_digest_update_ba ptr arr (fromIntegral c)
+    when (r == 0) $ throw $ OpenSslException "digest update failed"
+{-# INLINE updateCtx# #-}
+
 -- | Finalize a hash and return the digest.
 --
 finalCtx :: Ctx a -> IO (Digest a)
 finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
-    let s = fromIntegral $ c_evp_md_get_size (c_evp_md_ctx_get0_md (ConstPtr ptr))
-    allocaBytes s $ \dptr -> do
-        r <- c_evp_digest_final ptr dptr nullPtr
-        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
-        Digest <$> BS.packCStringLen (castPtr dptr, s)
+    let !(I# size) = fromIntegral $ c_evp_md_get_size (c_evp_md_ctx_get0_md (ConstPtr ptr))
+    r <- IO $ \s ->
+        case newByteArray# size s of
+            (# s1, marr #) -> case unIO (c_evp_digest_final ptr marr nullPtr) s1 of
+                (# s2, 0 #) -> (# s2, Nothing #)
+                (# s3, _ #) -> case unsafeFreezeByteArray# marr s3 of
+                    (# s4, arr #) -> (# s4, Just (BS.SBS arr) #)
+    case r of
+        Nothing -> throwIO $ OpenSslException "digest finalization failed"
+        Just a -> return $ Digest a
 {-# INLINE finalCtx #-}
 
 -- -------------------------------------------------------------------------- --
@@ -351,9 +371,10 @@ instance OpenSslDigest a => Hash (Digest a) where
 
 instance IncrementalHash (Digest a) where
     type Context (Digest a) = Ctx a
-    update = updateCtx
+    updatePtr = updateCtx
+    update# = updateCtx#
     finalize = finalCtx
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance ResetableHash (Digest a) where
@@ -368,26 +389,35 @@ newtype XOF_Digest (n :: Natural) a = XOF_Digest BS.ShortByteString
     deriving (Hash, ResetableHash) via (Digest a)
     deriving (Show, IsString) via B16ShortByteString
 
+-- foreign import ccall unsafe "openssl/evp.h EVP_DigestFinalXOF"
+--     c_EVP_DigestFinalXOF :: Ptr ctx -> Ptr CUChar -> CSize -> IO CInt
+
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinalXOF"
-    c_EVP_DigestFinalXOF :: Ptr ctx -> Ptr CUChar -> CSize -> IO CInt
+    c_EVP_DigestFinalXOF :: Ptr ctx -> MutableByteArray# s -> CSize -> IO CInt
 
 -- | Finalize an XOF based hash and return the digest.
 --
 xof_finalCtx :: forall n a . KnownNat n => Ctx a -> IO (XOF_Digest n a)
 xof_finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
-    allocaBytes s $ \dptr -> do
-        r <- c_EVP_DigestFinalXOF ptr dptr (fromIntegral s)
-        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
-        XOF_Digest <$> BS.packCStringLen (castPtr dptr, s)
+    r <- IO $ \s ->
+        case newByteArray# size# s of
+            (# s1, marr #) -> case unIO (c_EVP_DigestFinalXOF ptr marr (fromIntegral size)) s1 of
+                (# s2, 0 #) -> (# s2, Nothing #)
+                (# s3, _ #) -> case unsafeFreezeByteArray# marr s3 of
+                    (# s4, arr #) -> (# s4, Just (BS.SBS arr) #)
+    case r of
+        Nothing -> throwIO $ OpenSslException "digest finalization failed"
+        Just a -> return $ XOF_Digest a
   where
-    s = fromIntegral $ natVal' @n proxy#
+    !size@(I# size#) = fromIntegral $ natVal' @n proxy#
 {-# INLINE xof_finalCtx #-}
 
 instance KnownNat n => IncrementalHash (XOF_Digest n a) where
     type Context (XOF_Digest n a) = Ctx a
-    update = updateCtx
+    updatePtr = updateCtx
+    update# = updateCtx#
     finalize = xof_finalCtx
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 #if OPENSSL_VERSION_NUMBER < 0x30200000L
@@ -673,7 +703,7 @@ instance OpenSslDigest Keccak512 where algorithm = keccak_512
 finalizeKeccak256Ptr :: Ctx Keccak256 -> Ptr Word8 -> IO ()
 finalizeKeccak256Ptr (Ctx ctx) dptr =
     withForeignPtr ctx $ \cptr -> do
-        r <- c_evp_digest_final cptr (castPtr dptr) nullPtr
+        r <- c_evp_digest_final_ptr cptr (castPtr dptr) nullPtr
         when (r == 0) $ throw $ OpenSslException "digest finalization failed"
 {-# INLINE finalizeKeccak256Ptr #-}
 
@@ -685,9 +715,12 @@ finalizeKeccak256Ptr (Ctx ctx) dptr =
 finalizeKeccak512Ptr :: Ctx Keccak512 -> Ptr Word8 -> IO ()
 finalizeKeccak512Ptr (Ctx ctx) dptr = do
     withForeignPtr ctx $ \cptr -> do
-        r <- c_evp_digest_final cptr (castPtr dptr) nullPtr
+        r <- c_evp_digest_final_ptr cptr (castPtr dptr) nullPtr
         when (r == 0) $ throw $ OpenSslException "digest finalization failed"
 {-# INLINE finalizeKeccak512Ptr #-}
+
+foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex"
+    c_evp_digest_final_ptr :: Ptr ctx -> Ptr CUChar -> Ptr CUInt -> IO CInt
 
 -- -------------------------------------------------------------------------- --
 -- Blake

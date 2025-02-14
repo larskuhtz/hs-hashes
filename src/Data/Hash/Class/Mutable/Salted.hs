@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 
 -- |
 -- Module: Data.Hash.Class.Mutable.Salted
@@ -22,6 +23,7 @@ module Data.Hash.Class.Mutable.Salted
 , hashByteStringLazy
 , hashShortByteString
 , hashByteArray
+, hashByteArray#
 
 -- ** Pure variants of hash functions
 --
@@ -38,6 +40,7 @@ module Data.Hash.Class.Mutable.Salted
 , hashByteStringLazy_
 , hashShortByteString_
 , hashByteArray_
+, hashByteArray_#
 
 -- * Incremental Hashing
 , updateByteString
@@ -47,9 +50,10 @@ module Data.Hash.Class.Mutable.Salted
 , updateByteArray
 ) where
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Short as BS
+import Data.Array.Byte
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
+import Data.ByteString.Short qualified as BS
 import Data.Kind
 import Data.Word
 
@@ -76,7 +80,7 @@ class IncrementalHash a => Hash a where
 hashPtr :: forall a . Hash a => Salt a -> Ptr Word8 -> Int -> IO a
 hashPtr k p n = do
     ctx <- initialize @a k
-    update @a ctx p n
+    updatePtr @a ctx p n
     finalize ctx
 {-# INLINE hashPtr #-}
 
@@ -108,12 +112,19 @@ hashStorable k b = do
         finalize ctx
 {-# INLINE hashStorable #-}
 
-hashByteArray :: forall a . Hash a => Salt a -> ByteArray# -> IO a
+hashByteArray :: forall a . Hash a => Salt a -> ByteArray -> IO a
 hashByteArray k b = do
         ctx <- initialize @a k
         updateByteArray @a ctx b
         finalize ctx
 {-# INLINE hashByteArray #-}
+
+hashByteArray# :: forall a . Hash a => Salt a -> ByteArray# -> IO a
+hashByteArray# k b = do
+        ctx <- initialize @a k
+        update# @a ctx b
+        finalize ctx
+{-# INLINE hashByteArray# #-}
 
 -- -------------------------------------------------------------------------- --
 -- Pure variants
@@ -138,7 +149,11 @@ hashStorable_ :: forall a b . Hash a => Storable b => Salt a -> b -> a
 hashStorable_ s = unsafePerformIO . hashStorable s
 {-# INLINE hashStorable_ #-}
 
-hashByteArray_ :: forall a . Hash a => Salt a -> ByteArray# -> a
+hashByteArray_ :: forall a . Hash a => Salt a -> ByteArray -> a
 hashByteArray_ s a = unsafePerformIO $ hashByteArray s a
 {-# INLINE hashByteArray_ #-}
+
+hashByteArray_# :: forall a . Hash a => Salt a -> ByteArray# -> a
+hashByteArray_# s a = unsafePerformIO $ hashByteArray# s a
+{-# INLINE hashByteArray_# #-}
 

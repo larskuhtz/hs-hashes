@@ -2,6 +2,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 
 -- |
 -- Module: Data.Hash.Class.Mutable
@@ -23,6 +24,7 @@ module Data.Hash.Class.Mutable
 , hashByteStringLazy
 , hashShortByteString
 , hashByteArray
+, hashByteArray#
 
 -- ** Pure variants of hash functions
 --
@@ -39,6 +41,7 @@ module Data.Hash.Class.Mutable
 , hashByteStringLazy_
 , hashShortByteString_
 , hashByteArray_
+, hashByteArray_#
 
 -- * Incremental Hashing
 , updateByteString
@@ -51,9 +54,10 @@ module Data.Hash.Class.Mutable
 , ResetableHash(..)
 ) where
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Short as BS
+import Data.Array.Byte
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
+import Data.ByteString.Short qualified as BS
 import Data.Word
 
 import Foreign.Ptr
@@ -79,7 +83,7 @@ class IncrementalHash a => Hash a where
 hashPtr :: forall a . Hash a => Ptr Word8 -> Int -> IO a
 hashPtr p n = do
     ctx <- initialize @a
-    update @a ctx p n
+    updatePtr @a ctx p n
     finalize ctx
 {-# INLINE hashPtr #-}
 
@@ -111,12 +115,19 @@ hashStorable b = do
     finalize ctx
 {-# INLINE hashStorable #-}
 
-hashByteArray :: forall a . Hash a => ByteArray# -> IO a
+hashByteArray :: forall a . Hash a => ByteArray -> IO a
 hashByteArray b = do
     ctx <- initialize @a
     updateByteArray @a ctx b
     finalize ctx
 {-# INLINE hashByteArray #-}
+
+hashByteArray# :: forall a . Hash a => ByteArray# -> IO a
+hashByteArray# b = do
+    ctx <- initialize @a
+    update# @a ctx b
+    finalize ctx
+{-# INLINE hashByteArray# #-}
 
 -- --------------------------------------------------------------------------
 -- Pure variants of hashes
@@ -141,7 +152,11 @@ hashStorable_ :: forall a b . Hash a => Storable b => b -> a
 hashStorable_ = unsafePerformIO . hashStorable
 {-# INLINE hashStorable_ #-}
 
-hashByteArray_ :: forall a . Hash a => ByteArray# -> a
+hashByteArray_ :: forall a . Hash a => ByteArray -> a
 hashByteArray_ a = unsafePerformIO $ hashByteArray a
 {-# INLINE hashByteArray_ #-}
+
+hashByteArray_# :: forall a . Hash a => ByteArray# -> a
+hashByteArray_# a = unsafePerformIO $ hashByteArray# a
+{-# INLINE hashByteArray_# #-}
 
