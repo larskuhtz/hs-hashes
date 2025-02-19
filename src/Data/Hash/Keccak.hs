@@ -33,11 +33,7 @@ module Data.Hash.Keccak
   Keccak256(..)
 , Keccak512(..)
 , module Data.Hash.Class.Mutable
-
--- *** Unsafe finalize functions
-, finalizeKeccak256Ptr
-, finalizeKeccak512Ptr
-
+, OpenSslException(..)
 ) where
 
 import Data.Hash.Class.Mutable

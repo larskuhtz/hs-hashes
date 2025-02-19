@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MagicHash #-}
@@ -33,6 +34,9 @@ module Data.Hash.Class.Mutable.Internal
 , ResetableHash(..)
 ) where
 
+import Control.Monad
+import Control.Exception
+
 import Data.Array.Byte
 import Data.ByteString qualified as B
 import Data.ByteString.Lazy qualified as BL
@@ -48,7 +52,16 @@ import Foreign.Storable
 
 import GHC.Exts
 import GHC.IO
+import GHC.Stack
 import GHC.TypeNats
+
+-- -------------------------------------------------------------------------- --
+-- Exceptions
+
+newtype MutableHashException = MutableHashException String
+    deriving (Show)
+
+instance Exception MutableHashException
 
 -- -------------------------------------------------------------------------- --
 -- Incremental Mutable Hashes
@@ -57,59 +70,186 @@ class KnownNat (DigestSize a) => IncrementalHash a where
     type Context a :: Type
 
     -- | Size of the Digest in Bytes
+    --
     type DigestSize a :: Natural
 
-    -- | It is responsibility of the caller to ensure that the pointer stays
-    -- alive and valid until the function returns.
+    -- | Update the hash context with the contents of a Ptr.
+    --
+    -- It is responsibility of the caller to ensure that the pointer is valid
+    -- during the operations. In particular, if the pointer points to memory on
+    -- the Haskell heap, that memory must be pinned and must be kept alive.
     --
     -- The default implementation is in terms of 'update#' and copies the
-    -- contents of the ptr to a (unpinned) 'ByteArray#'.
+    -- contents of the ptr to an unpinned 'ByteArray#'.
     --
-    updatePtr :: Context a -> Ptr Word8 -> Int -> IO ()
-    updatePtr ctx ptr i = do
+    updatePtr
+        :: Context a
+            -- ^ The mutable hash context
+        -> Ptr Word8
+            -- ^ Pointer to the input data
+        -> Int
+            -- ^ The size of the input data in bytes
+        -> IO ()
+    updatePtr ctx ptr !i@(I# i#) = do
         (BS.SBS arr) <- BS.packCStringLen (castPtr ptr, i)
-        update# @a ctx arr
+        update# @a ctx arr 0# i#
     {-# INLINE updatePtr #-}
 
-    -- The implementation must not assume that the array is pinned. If needed
-    -- one may use 'isByteArrayPinned#' to determined whether the array is
-    -- pinned.
+    -- | Update the hash context with the contents of a (possibly unpinned)
+    -- ByteArray# at the given offset.
     --
-    -- Note, that since GHC version 8.4 it is sound to make /unsafe/ foreign
-    -- functions calls directly on ByteArray#. GHC will also keep the array
-    -- alive until the end of the unsafe call.
+    -- It is the responsibility of the caller to guarantee that the range
+    -- @[offset, offset+length-1]@ is indeed in the array. The implementation
+    -- may check that but that is not a requirement.
     --
-    -- Where possible, it is also recommended to /unsafe/ calls in the
-    -- implementation, splitting up possibly long running calls to foreign hash
-    -- implementations on large data into short calls on smaller chunks.
+    -- The implementation must not assume that the array is pinned.
     --
-    -- The default implementation is in terms of 'update' and has to copy the
+    -- Since GHC version 8.4 it it is sound to make /unsafe/ foreign functions
+    -- calls directly on ByteArray#. GHC will also keep the array alive until
+    -- the end of the unsafe call.
+    --
+    -- When possible, it is also recommended to use /unsafe/ calls in the
+    -- implementation. Possibly long running calls to foreign hash
+    -- implementations on large data may be split into short calls on smaller
+    -- chunks.
+    --
+    -- The default implementation is in terms of 'updatePtr' and has to copy the
     -- content of array in case it is unpinned. It also ensure that pinned
     -- arrays are kept alive as long as needed.
     --
-    update# :: Context a -> ByteArray# -> IO ()
-    update# ctx arr = case isByteArrayPinned# arr of
-        -- Pinned ByteArray. We have to keep it alive. We don't know how update
-        -- is implemented. So just 'touch#' is not an option.
-        1# -> IO $ \s -> keepAlive# arr s $ \s' ->
-            case unIO (updatePtr @a ctx (Ptr (byteArrayContents# arr)) (I# size)) s' of
-                (# s'', () #) -> (# s'', () #)
+    update#
+        :: Context a
+            -- ^ The mutable hash context
+        -> ByteArray#
+            -- ^ The (possibly unpinned) byte array with the input data
+        -> Int#
+            -- ^ The offset into the input byte array
+        -> Int#
+            -- ^ The size of the input data in bytes
+        -> IO ()
+    update# ctx arr# off# len# = do
+        -- Assert that the addressed memory is within the input array
+        when (isTrue# (size# <# off# +# len#)) $
+            throwIO $ MutableHashException "input array to small"
 
-        -- Unpinned ByteArray, copy content to newly allocated pinned ByteArray
-        _ -> allocaBytes (I# size) $ \ptr@(Ptr addr) -> IO $ \s0 ->
-            case copyByteArrayToAddr# arr 0# addr size s0 of
-                s1 -> case updatePtr @a ctx ptr (I# size) of
-                    IO run -> run s1
+        if isTrue# (isByteArrayPinned# arr#)
+          then
+            -- Pinned ByteArray. We have to keep it alive. We don't know how
+            -- updatePtr is implemented. So just 'touch#' is not an option.
+            IO $ \s0 -> keepAlive# arr# s0 $ \s1 ->
+                case unIO (updatePtr @a ctx (Ptr contAddr) (I# len#)) s1 of
+                    (# s2, () #) -> (# s2, () #)
+          else
+            -- Unpinned ByteArray, copy content to temporarily allocated memory
+            allocaBytes (I# len#) $ \ptr@(Ptr addr) -> IO $ \s0 ->
+                case copyByteArrayToAddr# arr# off# addr len# s0 of
+                    s1 -> case unIO (updatePtr @a ctx ptr (I# len#)) s1 of
+                        (# s2, () #) -> (# s2, () #)
       where
-        size = sizeofByteArray# arr
-    {-# INLINE update# #-}
+        size# = sizeofByteArray# arr#
+        contAddr = plusAddr# (byteArrayContents# arr#) off#
+    {-# INLINEABLE update# #-}
 
-    finalize :: Context a -> IO a
+    -- | Finalize a hash computation and return the digest.
+    --
+    -- The default implementation is in terms of finalize# and requires that the
+    -- type of the digest can be coerced from 'ByteArray'.
+    --
+    finalize
+        :: Context a
+            -- The mutable hash context
+        -> IO a
 
-    {-# MINIMAL (updatePtr | update#), finalize #-}
+    default finalize
+        :: HasCallStack
+        => Coercible a ByteArray
+        => Context a
+        -> IO a
+    finalize ctx = IO $ \s0 -> case newByteArray# size# s0 of
+        (# s1, a# #) -> case unIO (finalize# @a ctx a# 0#) s1 of
+            (# s2, () #) -> case unsafeFreezeByteArray# a# s2 of
+                (# s3, b# #) -> (# s3, coerce (ByteArray b#) #)
+      where
+        !(I# size#) = digestSize @a
+    {-# INLINEABLE finalize #-}
+
+    -- | Finalize a hash computation and write the digest bytes to the given
+    -- 'MutableByteArray#' at the given offset.
+    --
+    -- This API can be beneficial if many nested hashes are computed, for
+    -- instance during verification of Merkle proofs.
+    --
+    -- It is the responsiblility of the caller to guarantee that the result
+    -- array is large enough. Implementations may check and fail gracefully, but
+    -- this is not required.
+    --
+    -- The default implementation is in terms of 'finalPtr' and has to copy the
+    -- content of array in case it is unpinned. It also ensures that pinned
+    -- arrays are kept alive as long as needed.
+    --
+    finalize#
+        :: Context a
+            -- ^ The mutable hash context
+        -> MutableByteArray# RealWorld
+            -- ^ A (possibly unpinned) mutable byte array into which the digest
+            -- is written
+        -> Int#
+            -- ^ The offset in the byte array at which the digest is written
+        -> IO ()
+
+    finalize# ctx arr# offset# = do
+        asize <- IO $ \s -> case getSizeofMutableByteArray# arr# s of
+            (# s', n# #) -> (# s', I# (n# -# offset#) #)
+        when (asize < size) $
+            throwIO $ MutableHashException "output array to small for the digest"
+
+        if isTrue# (isMutableByteArrayPinned# arr#)
+          then
+            IO $ \s0 -> keepAlive# arr# s0 $ \s1 ->
+                case unIO (finalizePtr @a ctx (Ptr trgAddr#)) s1 of
+                    (# s2, () #) -> (# s2, () #)
+
+          else
+            allocaBytes size $ \ptr@(Ptr addr) -> IO $ \s0 ->
+                case unIO (finalizePtr @a ctx ptr) s0 of
+                    (# s1, () #) -> case copyAddrToByteArray# addr arr# offset# size# s1 of
+                        s2 -> (# s2, () #)
+      where
+        !size@(I# size#) = digestSize @a
+        trgAddr# = plusAddr# (mutableByteArrayContents# arr#) offset#
+    {-# INLINEABLE finalize# #-}
+
+    -- | Finalize a hash computation and write the digest bytes to the given
+    -- 'Ptr'.
+    --
+    -- It is the responsiblility of the caller to guarantee that there is enough
+    -- allocated space availale at the given Ptr and the pointer remains valid
+    -- during the operation. In particular, if the pointer points into the
+    -- Haskell keep the memory must be pinned and kept alive.
+    --
+    -- The default implementation is in terms of 'finalize#' and copies the
+    -- resulting digest bytes to the Ptr.
+    --
+    finalizePtr
+        :: Context a
+            -- ^ The mutable hash context
+        -> Ptr Word8
+            -- ^ Pointer to the memory location where the digest is written to
+        -> IO ()
+    finalizePtr ctx (Ptr addr#) = do
+        IO $ \s0 -> case newByteArray# size# s0 of
+            (# s1, a# #) -> case unIO (finalize# @a ctx a# 0#) s1 of
+                (# s2, () #) -> case copyMutableByteArrayToAddr# a# 0# addr# size# s2 of
+                    s3 -> (# s3, () #)
+      where
+        !(I# size#) = digestSize @a
+    {-# INLINEABLE finalizePtr #-}
+
+    {-# MINIMAL (updatePtr | update#), (finalize# | finalizePtr) #-}
 
 digestSize :: forall a n . IncrementalHash a => Num n => n
 digestSize = fromIntegral $ natVal' @(DigestSize a) proxy#
+{-# INLINE digestSize #-}
 
 updateByteString
     :: forall a
@@ -136,7 +276,7 @@ updateShortByteString
     => Context a
     -> BS.ShortByteString
     -> IO ()
-updateShortByteString ctx (BS.SBS b) = update# @a ctx b
+updateShortByteString ctx !(BS.SBS b#) = update# @a ctx b# 0# (sizeofByteArray# b#)
 {-# INLINE updateShortByteString #-}
 
 updateStorable
@@ -155,7 +295,7 @@ updateByteArray
     => Context a
     -> ByteArray
     -> IO ()
-updateByteArray ctx (ByteArray arr) = update# @a ctx arr
+updateByteArray ctx !(ByteArray b#) = update# @a ctx b# 0# (sizeofByteArray# b#)
 {-# INLINE updateByteArray #-}
 
 -- -------------------------------------------------------------------------- --

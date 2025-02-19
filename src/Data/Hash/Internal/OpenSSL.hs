@@ -1,16 +1,21 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CApiFFI #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
@@ -44,8 +49,10 @@ module Data.Hash.Internal.OpenSSL
 , Digest(..)
 , resetCtx
 , initCtx
-, updateCtx
-, finalCtx
+, updateCtxPtr
+, updateCtx#
+, finalCtxPtr
+, finalCtx#
 , fetchAlgorithm
 
 -- * Algorithms
@@ -86,10 +93,6 @@ module Data.Hash.Internal.OpenSSL
 , Keccak384(..)
 , Keccak512(..)
 
--- *** Unsafe finalize functions
-, finalizeKeccak256Ptr
-, finalizeKeccak512Ptr
-
 -- ** Blake2
 --
 -- $blake2
@@ -101,6 +104,7 @@ module Data.Hash.Internal.OpenSSL
 import Control.Exception
 import Control.Monad
 
+import Data.Array.Byte
 import Data.ByteString.Short qualified as BS
 import Data.Typeable
 import Data.Void
@@ -176,6 +180,12 @@ nullConstPtr :: ConstPtr a
 nullConstPtr = ConstPtr nullPtr
 
 -- -------------------------------------------------------------------------- --
+-- Misc utils
+
+toCSize# :: Int# -> CSize
+toCSize# i# = fromIntegral (I# i#)
+
+-- -------------------------------------------------------------------------- --
 -- OpenSSL Message Digest Algorithms
 
 -- | An algorithm implementation from an OpenSSL algorithm provider.
@@ -186,7 +196,7 @@ nullConstPtr = ConstPtr nullPtr
 --
 -- It is assumed that this always points to a valid algorithm implementation.
 --
-newtype Algorithm a = Algorithm (ForeignPtr Void)
+newtype Algorithm a = Algorithm (ForeignPtr a)
 
 instance Typeable a => Show (Algorithm a) where
     show _ = show (typeRep (Nothing @a))
@@ -194,6 +204,9 @@ instance Typeable a => Show (Algorithm a) where
 class KnownNat (OpenSslDigestSize a) => OpenSslDigest a where
     type OpenSslDigestSize a :: Natural
     algorithm :: Algorithm a
+
+openSslDigestSize :: forall a n . OpenSslDigest a => Num n => n
+openSslDigestSize = fromIntegral $ natVal' @(OpenSslDigestSize a) proxy#
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 -- | Fetches the digest implementation for the given algorithm from any provider
@@ -255,7 +268,7 @@ fetchAlgorithm name = do
 -- This can be used with @DerivingVia@ to derive hash instances for concrete
 -- message digest algorithms.
 --
-newtype Digest a = Digest BS.ShortByteString
+newtype Digest a = Digest ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
 
@@ -279,20 +292,16 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex"
     c_evp_digest_init :: Ptr ctx -> ConstPtr alg -> Ptr Void {- nullPtr -} -> IO CInt
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate"
-    c_evp_digest_update :: Ptr ctx -> ConstPtr d -> CSize -> IO CInt
+    c_evp_digest_update_ptr :: Ptr ctx -> ConstPtr d -> CSize -> IO CInt
 
-foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate"
-    c_evp_digest_update_ba :: Ptr ctx -> ByteArray# -> CSize -> IO CInt
+foreign import capi unsafe "evp_wrapper.h EVP_DigestUpdate_off"
+    c_evp_digest_update_off :: Ptr ctx -> ByteArray# -> CSize -> CSize -> IO CInt
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex"
-    c_evp_digest_final :: Ptr ctx -> MutableByteArray# s -> Ptr CUInt -> IO CInt
+    c_evp_digest_final_ptr :: Ptr ctx -> Ptr CUChar -> Ptr CUInt -> IO CInt
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_get0_md"
-#else
-foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_md"
-#endif
-    c_evp_md_ctx_get0_md :: ConstPtr ctx -> ConstPtr a
+foreign import capi unsafe "evp_wrapper.h EVP_DigestFinal_ex_off"
+    c_evp_digest_final_off :: Ptr ctx -> MutableByteArray# RealWorld -> CSize -> Ptr CUInt -> IO CInt
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 foreign import ccall unsafe "openssl/evp.h EVP_MD_get_size"
@@ -301,7 +310,23 @@ foreign import ccall unsafe "openssl/evp.h EVP_MD_size"
 #endif
     c_evp_md_get_size :: ConstPtr a -> CInt
 
-newCtx :: IO (Ctx a)
+-- | Assert the correct output size for the context.
+--
+-- NOTE that for OpenSSL <3.4 the output for XOF digests is size that
+-- corresponds to the security of the algorithm.
+--
+-- Starting with OpenSSL 3.4 the output for XOF digests is 0.
+--
+assertAlgorithmDigestSize :: forall a . OpenSslDigest a => (Ptr a) -> IO ()
+assertAlgorithmDigestSize algPtr =
+    unless (mdSize == 0 || mdSize == algSize) $ throw $ OpenSslException $
+        "failed to create new context for output size " <> show algSize
+            <> ". The algorithm offers " <> show mdSize
+  where
+    mdSize = fromIntegral @_ @Int $ c_evp_md_get_size (ConstPtr algPtr)
+    algSize = openSslDigestSize @a
+
+newCtx :: forall a . IO (Ctx a)
 newCtx = mask_ $ do
     ptr <- c_evp_ctx_new
     when (ptr == nullPtr) $ throw $ OpenSslException "failed to create new context"
@@ -311,11 +336,12 @@ newCtx = mask_ $ do
 -- | Allocates and initializes a new context. The context may be reused by
 -- calling 'resetCtx' on it.
 --
-initCtx :: Algorithm a -> IO (Ctx a)
+initCtx :: forall a . OpenSslDigest a => Algorithm a -> IO (Ctx a)
 initCtx (Algorithm alg) = do
     c@(Ctx ctx) <- newCtx
     r <- withForeignPtr ctx $ \ctxPtr ->
-        withForeignPtr alg $ \algPtr ->
+        withForeignPtr alg $ \algPtr -> do
+            assertAlgorithmDigestSize algPtr
             c_evp_digest_init ctxPtr (ConstPtr algPtr) nullPtr
     when (r == 0) $ throw $ OpenSslException "digest initialization failed"
     return c
@@ -332,37 +358,53 @@ resetCtx (Ctx ctx) = do
 
 -- | Feed more data into an context.
 --
-updateCtx :: Ctx a -> Ptr Word8 -> Int -> IO ()
-updateCtx (Ctx ctx) d c = withForeignPtr ctx $ \ptr -> do
-    r <- c_evp_digest_update ptr (ConstPtr d) (fromIntegral c)
+updateCtxPtr :: Ctx a -> Ptr Word8 -> Int -> IO ()
+updateCtxPtr (Ctx ctx) d c = withForeignPtr ctx $ \ptr -> do
+    r <- c_evp_digest_update_ptr ptr (ConstPtr d) (fromIntegral c)
     when (r == 0) $ throw $ OpenSslException "digest update failed"
-{-# INLINE updateCtx #-}
+{-# INLINE updateCtxPtr #-}
 
 -- | Feed more data into an context from an possibly unpinned ByteArray without
 -- copying the content.
 --
-updateCtx# :: Ctx a -> ByteArray# -> IO ()
-updateCtx# (Ctx ctx) arr = withForeignPtr ctx $ \ptr -> do
-    let !c = I# $ sizeofByteArray# arr
-    r <- c_evp_digest_update_ba ptr arr (fromIntegral c)
+updateCtx# :: Ctx a -> ByteArray# -> Int# -> Int# -> IO ()
+updateCtx# (Ctx ctx) arr# off# len# = withForeignPtr ctx $ \ptr -> do
+    when (isTrue# (size# <# off# +# len#)) $
+        throwIO $ OpenSslException "input array to small"
+    r <- c_evp_digest_update_off ptr arr# (toCSize# off#) (toCSize# len#)
     when (r == 0) $ throw $ OpenSslException "digest update failed"
+  where
+    size# = sizeofByteArray# arr#
 {-# INLINE updateCtx# #-}
 
 -- | Finalize a hash and return the digest.
 --
-finalCtx :: Ctx a -> IO (Digest a)
-finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
-    let !(I# size) = fromIntegral $ c_evp_md_get_size (c_evp_md_ctx_get0_md (ConstPtr ptr))
-    r <- IO $ \s ->
-        case newByteArray# size s of
-            (# s1, marr #) -> case unIO (c_evp_digest_final ptr marr nullPtr) s1 of
-                (# s2, 0 #) -> (# s2, Nothing #)
-                (# s3, _ #) -> case unsafeFreezeByteArray# marr s3 of
-                    (# s4, arr #) -> (# s4, Just (BS.SBS arr) #)
-    case r of
-        Nothing -> throwIO $ OpenSslException "digest finalization failed"
-        Just a -> return $ Digest a
-{-# INLINE finalCtx #-}
+finalCtx#
+    :: forall a
+    . OpenSslDigest a
+    => Ctx a
+    -> MutableByteArray# RealWorld
+    -> Int#
+    -> IO ()
+finalCtx# (Ctx ctx) arr# off# = withForeignPtr ctx $ \ptr -> do
+
+    -- When this is called from the default implementation of final this check
+    -- is redundant. But I guess it is cheap enough to worry about it.
+    asize <- IO $ \s -> case getSizeofMutableByteArray# arr# s of
+            (# s', n# #) -> (# s', I# (n# -# off#) #)
+    when (asize < openSslDigestSize @a) $
+        throwIO $ OpenSslException "array to small for digest"
+
+    r <- c_evp_digest_final_off ptr arr# (toCSize# off#) nullPtr
+    when (r == 0) $ throwIO $ OpenSslException "digest finalization failed"
+{-# INLINE finalCtx# #-}
+
+finalCtxPtr :: Ctx a -> Ptr Word8 -> IO ()
+finalCtxPtr (Ctx ctx) dptr =
+    withForeignPtr ctx $ \cptr -> do
+        r <- c_evp_digest_final_ptr cptr (castPtr dptr) nullPtr
+        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
+{-# INLINE finalCtxPtr #-}
 
 -- -------------------------------------------------------------------------- --
 -- Hash Instances for Digest
@@ -371,14 +413,15 @@ instance OpenSslDigest a => Hash (Digest a) where
     initialize = initCtx (algorithm @a)
     {-# INLINE initialize #-}
 
-instance OpenSslDigest a => IncrementalHash (Digest a) where
+instance (OpenSslDigest a) => IncrementalHash (Digest a) where
     type Context (Digest a) = Ctx a
     type DigestSize (Digest a) = OpenSslDigestSize a
-    updatePtr = updateCtx
+    updatePtr = updateCtxPtr
     update# = updateCtx#
-    finalize = finalCtx
+    finalize# = finalCtx#
+    finalizePtr = finalCtxPtr
     {-# INLINE updatePtr #-}
-    {-# INLINE finalize #-}
+    {-# INLINE finalize# #-}
 
 instance OpenSslDigest a => ResetableHash (Digest a) where
     reset = resetCtx
@@ -387,48 +430,89 @@ instance OpenSslDigest a => ResetableHash (Digest a) where
 -- -------------------------------------------------------------------------- --
 -- Hashes based on extendable-output functions (XOF)
 
-newtype XOF_Digest (n :: Natural) a = XOF_Digest BS.ShortByteString
+newtype XOF_Digest a = XOF_Digest ByteArray
     deriving (Eq, Ord)
-    deriving (Hash, ResetableHash) via (Digest a)
+    deriving (ResetableHash) via (Digest a)
     deriving (Show, IsString) via B16ShortByteString
 
--- foreign import ccall unsafe "openssl/evp.h EVP_DigestFinalXOF"
---     c_EVP_DigestFinalXOF :: Ptr ctx -> Ptr CUChar -> CSize -> IO CInt
+#if OPENSSL_VERSION_NUMBER < 0x30400000L
+-- | For OpenSSL <3.4 this implementation skips the assertion of the output
+-- digest size for XOF digests.
+--
+instance OpenSslDigest a => Hash (XOF_Digest a) where
+    initialize = xof_initCtx (algorithm @a)
+    {-# INLINE initialize #-}
+
+-- | Allocates and initializes a new context. The context may be reused by
+-- calling 'resetCtx' on it.
+--
+-- This is the same as 'initCtx' but omits the assertion of the output digest
+-- size.
+--
+xof_initCtx :: forall a . OpenSslDigest a => Algorithm a -> IO (Ctx a)
+xof_initCtx (Algorithm alg) = do
+    c@(Ctx ctx) <- newCtx
+    r <- withForeignPtr ctx $ \ctxPtr ->
+        withForeignPtr alg $ \algPtr -> do
+            c_evp_digest_init ctxPtr (ConstPtr algPtr) nullPtr
+    when (r == 0) $ throw $ OpenSslException "digest initialization failed"
+    return c
+{-# INLINE xof_initCtx #-}
+#else
+deriving via (Digest a) instance OpenSslDigest a => Hash (XOF_Digest a)
+#endif
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinalXOF"
-    c_EVP_DigestFinalXOF :: Ptr ctx -> MutableByteArray# s -> CSize -> IO CInt
+    c_EVP_DigestFinalXOF_ptr :: Ptr ctx -> Ptr CUChar -> CSize -> IO CInt
+
+foreign import capi unsafe "evp_wrapper.h EVP_DigestFinalXOF_off"
+    c_EVP_DigestFinalXOF_off :: Ptr ctx -> MutableByteArray# s -> CSize -> CSize -> IO CInt
 
 -- | Finalize an XOF based hash and return the digest.
 --
-xof_finalCtx :: forall n a . KnownNat n => Ctx a -> IO (XOF_Digest n a)
-xof_finalCtx (Ctx ctx) = withForeignPtr ctx $ \ptr -> do
-    r <- IO $ \s ->
-        case newByteArray# size# s of
-            (# s1, marr #) -> case unIO (c_EVP_DigestFinalXOF ptr marr (fromIntegral size)) s1 of
-                (# s2, 0 #) -> (# s2, Nothing #)
-                (# s3, _ #) -> case unsafeFreezeByteArray# marr s3 of
-                    (# s4, arr #) -> (# s4, Just (BS.SBS arr) #)
-    case r of
-        Nothing -> throwIO $ OpenSslException "digest finalization failed"
-        Just a -> return $ XOF_Digest a
-  where
-    !size@(I# size#) = fromIntegral $ natVal' @n proxy#
-{-# INLINE xof_finalCtx #-}
+xof_finalCtx#
+    :: forall a
+    . OpenSslDigest a
+    => Ctx a
+    -> MutableByteArray# RealWorld
+    -> Int#
+    -> IO ()
+xof_finalCtx# (Ctx ctx) arr# off# = withForeignPtr ctx $ \ptr -> do
 
-instance KnownNat n => IncrementalHash (XOF_Digest n a) where
-    type Context (XOF_Digest n a) = Ctx a
-    type DigestSize (XOF_Digest n a) = n
-    updatePtr = updateCtx
+    -- When this is called from the default implementation of final this check
+    -- is redundant. But I guess it is cheap enough to worry about it.
+    asize <- IO $ \s -> case getSizeofMutableByteArray# arr# s of
+            (# s', n# #) -> (# s', I# (n# -# off#) #)
+    when (asize < openSslDigestSize @a) $
+        throwIO $ OpenSslException "array to small for digest"
+
+    r <- c_EVP_DigestFinalXOF_off ptr arr# (toCSize# off#) (openSslDigestSize @a)
+    when (r == 0) $ throwIO $ OpenSslException "digest finalization failed"
+{-# INLINE xof_finalCtx# #-}
+
+xof_finalCtxPtr :: forall a . OpenSslDigest a => Ctx a -> Ptr Word8 -> IO ()
+xof_finalCtxPtr (Ctx ctx) dptr =
+    withForeignPtr ctx $ \cptr -> do
+        r <- c_EVP_DigestFinalXOF_ptr cptr (castPtr dptr) (openSslDigestSize @a)
+        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
+{-# INLINE xof_finalCtxPtr #-}
+
+instance OpenSslDigest a => IncrementalHash (XOF_Digest a) where
+    type Context (XOF_Digest a) = Ctx a
+    type DigestSize (XOF_Digest a) = OpenSslDigestSize a
+    updatePtr = updateCtxPtr
     update# = updateCtx#
-    finalize = xof_finalCtx
+    finalize# = xof_finalCtx#
+    finalizePtr = xof_finalCtxPtr
     {-# INLINE updatePtr #-}
-    {-# INLINE finalize #-}
+    {-# INLINE finalize# #-}
+    {-# INLINE finalizePtr #-}
 
 #if OPENSSL_VERSION_NUMBER < 0x30200000L
 -- -------------------------------------------------------------------------- --
 -- Legacy Keccak Implementation
 
-newtype LegacyKeccak_Digest a = LegacyKeccak_Digest BS.ShortByteString
+newtype LegacyKeccak_Digest a = LegacyKeccak_Digest ByteArray
     deriving (Eq, Ord)
     deriving (IncrementalHash) via (Digest a)
     deriving (Show, IsString) via B16ShortByteString
@@ -457,7 +541,7 @@ instance OpenSslDigest a => Hash (LegacyKeccak_Digest a) where
     initialize = legacyKeccak_initCtx (algorithm @a)
     {-# INLINE initialize #-}
 
-instance ResetableHash (LegacyKeccak_Digest a) where
+instance OpenSslDigest a => ResetableHash (LegacyKeccak_Digest a) where
     reset = legacyKeccak_resetCtx
     {-# INLINE reset #-}
 #endif
@@ -508,7 +592,7 @@ sha2_512_256 :: Algorithm Sha2_512_256
 sha2_512_256 = unsafePerformIO $ fetchAlgorithm "SHA512-256"
 {-# NOINLINE sha2_512_256 #-}
 
-newtype Sha2_224 = Sha2_224 BS.ShortByteString
+newtype Sha2_224 = Sha2_224 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_224)
@@ -516,7 +600,7 @@ instance OpenSslDigest Sha2_224 where
     type OpenSslDigestSize Sha2_224 = 28
     algorithm = sha2_224
 
-newtype Sha2_256 = Sha2_256 BS.ShortByteString
+newtype Sha2_256 = Sha2_256 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_256)
@@ -524,7 +608,7 @@ instance OpenSslDigest Sha2_256 where
     type OpenSslDigestSize Sha2_256 = 32
     algorithm = sha2_256
 
-newtype Sha2_384 = Sha2_384 BS.ShortByteString
+newtype Sha2_384 = Sha2_384 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_384)
@@ -532,7 +616,7 @@ instance OpenSslDigest Sha2_384 where
     type OpenSslDigestSize Sha2_384 = 48
     algorithm = sha2_384
 
-newtype Sha2_512 = Sha2_512 BS.ShortByteString
+newtype Sha2_512 = Sha2_512 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_512)
@@ -540,7 +624,7 @@ instance OpenSslDigest Sha2_512 where
     type OpenSslDigestSize Sha2_512 = 64
     algorithm = sha2_512
 
-newtype Sha2_512_224 = Sha2_512_224 BS.ShortByteString
+newtype Sha2_512_224 = Sha2_512_224 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_512_224)
@@ -548,7 +632,7 @@ instance OpenSslDigest Sha2_512_224 where
     type OpenSslDigestSize Sha2_512_224 = 28
     algorithm = sha2_512_224
 
-newtype Sha2_512_256 = Sha2_512_256 BS.ShortByteString
+newtype Sha2_512_256 = Sha2_512_256 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha2_512_256)
@@ -594,7 +678,7 @@ shake256 :: Algorithm (Shake256 n)
 shake256 = unsafePerformIO $ fetchAlgorithm "SHAKE256"
 {-# NOINLINE shake256 #-}
 
-newtype Sha3_224 = Sha3_224 BS.ShortByteString
+newtype Sha3_224 = Sha3_224 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_224)
@@ -602,7 +686,7 @@ instance OpenSslDigest Sha3_224 where
     type OpenSslDigestSize Sha3_224 = 28
     algorithm = sha3_224
 
-newtype Sha3_256 = Sha3_256 BS.ShortByteString
+newtype Sha3_256 = Sha3_256 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_256)
@@ -610,7 +694,7 @@ instance OpenSslDigest Sha3_256 where
     type OpenSslDigestSize Sha3_256 = 32
     algorithm = sha3_256
 
-newtype Sha3_384 = Sha3_384 BS.ShortByteString
+newtype Sha3_384 = Sha3_384 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_384)
@@ -618,7 +702,7 @@ instance OpenSslDigest Sha3_384 where
     type OpenSslDigestSize Sha3_384 = 48
     algorithm = sha3_384
 
-newtype Sha3_512 = Sha3_512 BS.ShortByteString
+newtype Sha3_512 = Sha3_512 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (Digest Sha3_512)
@@ -626,18 +710,18 @@ instance OpenSslDigest Sha3_512 where
     type OpenSslDigestSize Sha3_512 = 64
     algorithm = sha3_512
 
-newtype Shake128 (bits :: Natural) = Shake128 BS.ShortByteString
+newtype Shake128 (n :: Natural) = Shake128 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
-    deriving (IncrementalHash, Hash, ResetableHash) via (XOF_Digest bits (Shake128 bits))
+    deriving (IncrementalHash, Hash, ResetableHash) via (XOF_Digest (Shake128 n))
 instance KnownNat n => OpenSslDigest (Shake128 n) where
     type OpenSslDigestSize (Shake128 n) = n
     algorithm = shake128
 
-newtype Shake256 (bits :: Natural) = Shake256 BS.ShortByteString
+newtype Shake256 (n :: Natural) = Shake256 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
-    deriving (IncrementalHash, Hash, ResetableHash) via (XOF_Digest bits (Shake256 bits))
+    deriving (IncrementalHash, Hash, ResetableHash) via (XOF_Digest (Shake256 n))
 instance KnownNat n => OpenSslDigest (Shake256 n) where
     type OpenSslDigestSize (Shake256 n) = n
     algorithm = shake256
@@ -699,7 +783,7 @@ keccak_512 :: Algorithm Keccak512
 keccak_512 = unsafePerformIO $ fetchAlgorithm KECCAK(512)
 {-# NOINLINE keccak_512 #-}
 
-newtype Keccak224 = Keccak224 BS.ShortByteString
+newtype Keccak224 = Keccak224 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak224)
@@ -707,7 +791,7 @@ instance OpenSslDigest Keccak224 where
     type OpenSslDigestSize Keccak224 = 28
     algorithm = keccak_224
 
-newtype Keccak256 = Keccak256 BS.ShortByteString
+newtype Keccak256 = Keccak256 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak256)
@@ -715,7 +799,7 @@ instance OpenSslDigest Keccak256 where
     type OpenSslDigestSize Keccak256 = 32
     algorithm = keccak_256
 
-newtype Keccak384 = Keccak384 BS.ShortByteString
+newtype Keccak384 = Keccak384 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak384)
@@ -723,40 +807,13 @@ instance OpenSslDigest Keccak384 where
     type OpenSslDigestSize Keccak384 = 48
     algorithm = keccak_384
 
-newtype Keccak512 = Keccak512 BS.ShortByteString
+newtype Keccak512 = Keccak512 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
     deriving (IncrementalHash, Hash, ResetableHash) via (KECCAK_DIGEST Keccak512)
 instance OpenSslDigest Keccak512 where
     type OpenSslDigestSize Keccak512 = 64
     algorithm = keccak_512
-
--- | Low-Level function that writes the final digest directly into the provided
--- pointer. The pointer must point to at least 64 bytes of allocated memory.
--- This is not checked and a violation of this condition may result in a
--- segmentation fault.
---
-finalizeKeccak256Ptr :: Ctx Keccak256 -> Ptr Word8 -> IO ()
-finalizeKeccak256Ptr (Ctx ctx) dptr =
-    withForeignPtr ctx $ \cptr -> do
-        r <- c_evp_digest_final_ptr cptr (castPtr dptr) nullPtr
-        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
-{-# INLINE finalizeKeccak256Ptr #-}
-
--- | Low-Level function that writes the final digest directly into the provided
--- pointer. The pointer must point to at least 64 bytes of allocated memory.
--- This is not checked and a violation of this condition may result in a
--- segmentation fault.
---
-finalizeKeccak512Ptr :: Ctx Keccak512 -> Ptr Word8 -> IO ()
-finalizeKeccak512Ptr (Ctx ctx) dptr = do
-    withForeignPtr ctx $ \cptr -> do
-        r <- c_evp_digest_final_ptr cptr (castPtr dptr) nullPtr
-        when (r == 0) $ throw $ OpenSslException "digest finalization failed"
-{-# INLINE finalizeKeccak512Ptr #-}
-
-foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex"
-    c_evp_digest_final_ptr :: Ptr ctx -> Ptr CUChar -> Ptr CUInt -> IO CInt
 
 -- -------------------------------------------------------------------------- --
 -- Blake
@@ -785,18 +842,18 @@ blake2s256 :: Algorithm Blake2s256
 blake2s256 = unsafePerformIO $ fetchAlgorithm "BLAKE2s256"
 {-# NOINLINE blake2s256 #-}
 
-newtype Blake2b512 = Blake2b512 BS.ShortByteString
+newtype Blake2b512 = Blake2b512 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
-    deriving (IncrementalHash, Hash) via (Digest Blake2b512)
+    deriving (IncrementalHash, Hash, ResetableHash) via (Digest Blake2b512)
 instance OpenSslDigest Blake2b512 where
     type OpenSslDigestSize Blake2b512 = 64
     algorithm = blake2b512
 
-newtype Blake2s256 = Blake2s256 BS.ShortByteString
+newtype Blake2s256 = Blake2s256 ByteArray
     deriving (Eq, Ord)
     deriving (Show, IsString) via B16ShortByteString
-    deriving (IncrementalHash, Hash) via (Digest Blake2s256)
+    deriving (IncrementalHash, Hash, ResetableHash) via (Digest Blake2s256)
 instance OpenSslDigest Blake2s256 where
     type OpenSslDigestSize Blake2s256 = 32
     algorithm = blake2s256

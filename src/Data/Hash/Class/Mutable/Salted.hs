@@ -120,9 +120,9 @@ hashByteArray k b = do
 {-# INLINE hashByteArray #-}
 
 hashByteArray# :: forall a . Hash a => Salt a -> ByteArray# -> IO a
-hashByteArray# k b = do
+hashByteArray# k b# = do
         ctx <- initialize @a k
-        update# @a ctx b
+        update# @a ctx b# 0# (sizeofByteArray# b#)
         finalize ctx
 {-# INLINE hashByteArray# #-}
 

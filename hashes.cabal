@@ -53,6 +53,8 @@ common openssl-common
     if flag(with-openssl)
         c-sources:
             cbits/keccak.c
+        includes:
+            cbits/evp_wrapper.h
         cpp-options: -DWITH_OPENSSL=1
         if flag(openssl-use-pkg-config)
             pkgconfig-depends: libcrypto
@@ -93,7 +95,10 @@ library
         -msse4.2
     build-depends:
         , base >=4.11 && <5
-        , bytestring >=0.10
+        , bytestring >=0.12
+    if impl(ghc < 9.4)
+        build-depends: data-array-byte
+            , data-array-byte >=0.1
 
 test-suite tests
     import: openssl-common

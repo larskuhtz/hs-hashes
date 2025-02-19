@@ -23,9 +23,9 @@ module Data.Hash.Blake2
 , Blake2s256(..)
 
 , module Data.Hash.Class.Mutable
+, OpenSslException(..)
 ) where
 
 import Data.Hash.Class.Mutable
 import Data.Hash.Internal.OpenSSL
-
 
