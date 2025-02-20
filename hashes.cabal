@@ -12,6 +12,7 @@ maintainer: lakuhtz@gmail.com
 copyright: Copyright (c) 2019-2024 Lars Kuhtz <lakuhtz@gmail.com>
 category: Data
 tested-with:
+    GHC==9.12
     GHC==9.10
     GHC==9.6
     GHC==9.4
