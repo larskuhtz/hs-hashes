@@ -172,18 +172,22 @@ pattern ConstPtr a = a
 
 withConstCString :: String -> (ConstCString -> IO a) -> IO a
 withConstCString str inner = withCString str $ \cstr -> inner (ConstPtr cstr)
+{-# INLINE withConstCString #-}
 
 constPtr :: Addr# -> ConstPtr a
 constPtr a = ConstPtr (Ptr a)
+{-# INLINE constPtr #-}
 
 nullConstPtr :: ConstPtr a
 nullConstPtr = ConstPtr nullPtr
+{-# INLINE nullConstPtr #-}
 
 -- -------------------------------------------------------------------------- --
 -- Misc utils
 
 toCSize# :: Int# -> CSize
 toCSize# i# = fromIntegral (I# i#)
+{-# INLINE toCSize# #-}
 
 -- -------------------------------------------------------------------------- --
 -- OpenSSL Message Digest Algorithms
