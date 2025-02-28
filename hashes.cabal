@@ -23,6 +23,7 @@ extra-doc-files:
 extra-source-files:
     cbits/keccak.h
     cbits/keccak.c
+    cbits/evp_wrapper.h
 
 source-repository head
     type: git
@@ -55,13 +56,13 @@ common openssl-common
         c-sources:
             cbits/keccak.c
         includes:
-            cbits/evp_wrapper.h
+            evp_wrapper.h
+        include-dirs: cbits
         cpp-options: -DWITH_OPENSSL=1
         if flag(openssl-use-pkg-config)
             pkgconfig-depends: libcrypto
         else
             extra-libraries: crypto
-        include-dirs: cbits
 
 library
     import: openssl-common
