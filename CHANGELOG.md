@@ -1,5 +1,59 @@
 # Revision history for the hashes package
 
+## 0.4.0.0 -- 2025-03-05
+
+Breaking Changes:
+
+`Data.Hash.Class.Mutable`:
+*   In class `IncrementalHash`
+    *   add `DigestSize` type family,
+    *   rename class method `update` into `updatePtr`,
+    *   add class method `update#`,
+    *   add new class methods `finalize#`, `finalizePtr`, and
+    *   provide reasonable default implementations for all class methods.
+*   In signatures of `hashByteArray` and `hashByteArray_` replace primitive
+    `ByteArray#` by lifted `ByteArray`.
+*   In signature of `updateByteArray` replace primitive `ByteArray#` by
+    lifted `ByteArray`.
+
+`Data.Hash.Class.Pure`:
+*   In class `IncrementalHash`
+    *   add `DigestSize` type family,
+    *   rename class method `update` into `updatePtr`,
+    *   add class method `update#`,
+    *   provide reasonable default implementations for all class methods.
+*   In signature of `hashByteArray` replace primitive `ByteArray#` by lifted
+    `ByteArray`.
+*   In signature of `updateByteArray` replace primitive `ByteArray#` by
+    lifted `ByteArray`.
+
+`Data.Hash.Class.Mutable.Salted`:
+*   In signatures of `hashByteArray` and `hashByteArray_` replace primitive
+    `ByteArray#` by lifted `ByteArray`.
+*   In signature of `updateByteArray` replace primitive `ByteArray#` by
+    lifted `ByteArray`.
+
+`Data.Hash.Class.Pure.Salted`:
+*   In signature of `hashByteArray` replace primitive `ByteArray#` by lifted
+    `ByteArray`.
+*   In signature of `updateByteArray` replace primitive `ByteArray#` by
+    lifted `ByteArray`.
+
+`Data.Hash.Keccak`:
+*   remove functions `finalizeKeccak256Ptr` and `finalizeKeccakt512Ptr`.
+
+Other Changes:
+
+*   Add new function `digestSize` to `Data.Hash.Class.Mutable` and
+    `Data.Hash.Class.Mutable.Salted`.
+*   Add new functions `hashByteArray#` and `hashByteArray_#` that take a
+    primitive `ByteArray#` to `Data.Hash.Class.Mutable` and
+    `Data.Hash.Class.Mutable.Salted`.
+*   Add new function `hashByteArray#` that takes a primitive `ByteArray#` to
+    `Data.Hash.Class.Pure` and `Data.Hash.Class.Pure.Salted`.
+*   Export `OpenSslException` from modules `Data.Hash.Blake2`,
+    `Data.Hash.Keccak`, `Data.Hash.SHA2`, and `Data.Hash.SHA3`.
+
 ## 0.3.0.1 -- 2024-08-20
 
 *   Fix building the package on Gentoo.
