@@ -4,6 +4,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
 
 -- |
 -- Module: Data.Hash.FNV1
@@ -115,6 +117,11 @@ import Foreign.Storable
 
 import GHC.Exts
 import GHC.IO
+#if !(defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH) || defined(i386_HOST_ARCH))
+import GHC.TypeLits
+#endif
+
+import Numeric.Natural
 
 -- internal modules
 
@@ -147,10 +154,11 @@ fnv164 !ptr !n = fnv164Finalize <$!> fnv164Update fnv164Initialize ptr n
 
 instance IncrementalHash Fnv164Hash where
     type Context Fnv164Hash = Fnv164Context
-    update = fnv164Update
+    type DigestSize Fnv164Hash = 8
+    updatePtr = fnv164Update
     finalize = fnv164Finalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance Hash Fnv164Hash where
@@ -184,10 +192,11 @@ fnv1a64 !ptr !n = fnv1a64Finalize <$!> fnv1a64Update fnv1a64Initialize ptr n
 
 instance IncrementalHash Fnv1a64Hash where
     type Context Fnv1a64Hash = Fnv1a64Context
-    update = fnv1a64Update
+    type DigestSize Fnv1a64Hash = 8
+    updatePtr = fnv1a64Update
     finalize = fnv1a64Finalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance Hash Fnv1a64Hash where
@@ -221,10 +230,11 @@ fnv132 !ptr !n = fnv132Finalize <$!> fnv132Update fnv132Initialize ptr n
 
 instance IncrementalHash Fnv132Hash where
     type Context Fnv132Hash = Fnv132Context
-    update = fnv132Update
+    type DigestSize Fnv132Hash = 4
+    updatePtr = fnv132Update
     finalize = fnv132Finalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance Hash Fnv132Hash where
@@ -258,10 +268,11 @@ fnv1a32 !ptr !n = fnv1a32Finalize <$!> fnv1a32Update fnv1a32Initialize ptr n
 
 instance IncrementalHash Fnv1a32Hash where
     type Context Fnv1a32Hash = Fnv1a32Context
-    update = fnv1a32Update
+    type DigestSize Fnv1a32Hash = 4
+    updatePtr = fnv1a32Update
     finalize = fnv1a32Finalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance Hash Fnv1a32Hash where
@@ -295,10 +306,11 @@ fnv1 !ptr !n = fnv1Finalize <$!> fnv1Update fnv1Initialize ptr n
 
 instance IncrementalHash Fnv1Hash where
     type Context Fnv1Hash = Fnv1Context
-    update = fnv1Update
+    type DigestSize Fnv1Hash = WORD_SIZE
+    updatePtr = fnv1Update
     finalize = fnv1Finalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance Hash Fnv1Hash where
@@ -332,10 +344,11 @@ fnv1a !ptr !n = fnv1aFinalize <$!> fnv1aUpdate fnv1aInitialize ptr n
 
 instance IncrementalHash Fnv1aHash where
     type Context Fnv1aHash = Fnv1aContext
-    update = fnv1aUpdate
+    type DigestSize Fnv1aHash = WORD_SIZE
+    updatePtr = fnv1aUpdate
     finalize = fnv1aFinalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance Hash Fnv1aHash where
@@ -345,6 +358,15 @@ instance Hash Fnv1aHash where
 -- -------------------------------------------------------------------------- --
 -- Low Level
 -- -------------------------------------------------------------------------- --
+
+type WORD_SIZE :: Natural
+#if defined(x86_64_HOST_ARCH) || defined(aarch64_HOST_ARCH)
+type WORD_SIZE = 8
+#elif defined(i386_HOST_ARCH)
+type WORD_SIZE = 4
+#else
+type WORD_SIZE = TypeError (Text "unsupported hardware platform")
+#endif
 
 -- -------------------------------------------------------------------------- --
 -- Constants

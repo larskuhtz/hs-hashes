@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -14,6 +15,7 @@
 module Data.Hash.Class.Pure.Salted
 ( Hash(..)
 , IncrementalHash(..)
+, digestSize
 
 , hashPtr
 , hashStorable
@@ -21,6 +23,7 @@ module Data.Hash.Class.Pure.Salted
 , hashByteStringLazy
 , hashShortByteString
 , hashByteArray
+, hashByteArray#
 
 -- * Incremental Hashing
 , updateByteString
@@ -32,9 +35,10 @@ module Data.Hash.Class.Pure.Salted
 
 import Control.Monad
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Short as BS
+import Data.Array.Byte
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
+import Data.ByteString.Short qualified as BS
 import Data.Kind
 import Data.Word
 
@@ -42,6 +46,8 @@ import Foreign.Ptr
 import Foreign.Storable
 
 import GHC.Exts
+
+import System.IO.Unsafe
 
 -- internal modules
 
@@ -58,7 +64,7 @@ class IncrementalHash a => Hash a where
 -- hash Functions
 
 hashPtr :: forall a. Hash a => Salt a -> Ptr Word8 -> Int -> IO a
-hashPtr k p n = finalize <$!> update @a (initialize @a k) p n
+hashPtr k p n = finalize <$!> updatePtr @a (initialize @a k) p n
 {-# INLINE hashPtr #-}
 
 hashByteString :: forall a . Hash a => Salt a -> B.ByteString -> a
@@ -77,7 +83,12 @@ hashStorable :: forall a b . Hash a => Storable b => Salt a -> b -> a
 hashStorable k b = finalize $! updateStorable @a (initialize @a k) b
 {-# INLINE hashStorable #-}
 
-hashByteArray :: forall a . Hash a => Salt a -> ByteArray# -> a
+hashByteArray :: forall a . Hash a => Salt a -> ByteArray -> a
 hashByteArray k b = finalize $! updateByteArray @a (initialize @a k) b
 {-# INLINE hashByteArray #-}
+
+hashByteArray# :: forall a . Hash a => Salt a -> ByteArray# -> a
+hashByteArray# k b = finalize $! unsafeDupablePerformIO $
+    update# @a (initialize @a k) b 0# (sizeofByteArray# b)
+{-# INLINE hashByteArray# #-}
 

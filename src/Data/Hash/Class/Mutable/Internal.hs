@@ -52,7 +52,6 @@ import Foreign.Storable
 
 import GHC.Exts
 import GHC.IO
-import GHC.Stack
 import GHC.TypeNats
 
 -- -------------------------------------------------------------------------- --
@@ -161,8 +160,7 @@ class KnownNat (DigestSize a) => IncrementalHash a where
         -> IO a
 
     default finalize
-        :: HasCallStack
-        => Coercible a ByteArray
+        :: Coercible a ByteArray
         => Context a
         -> IO a
     finalize ctx = IO $ \s0 -> case newByteArray# size# s0 of

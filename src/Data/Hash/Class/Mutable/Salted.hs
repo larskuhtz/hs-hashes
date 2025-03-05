@@ -17,6 +17,7 @@
 module Data.Hash.Class.Mutable.Salted
 ( Hash(..)
 
+, digestSize
 , hashPtr
 , hashStorable
 , hashByteString

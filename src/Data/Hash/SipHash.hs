@@ -121,10 +121,11 @@ sipHash48 = sipHashCD
 
 instance (SipHashParam c, SipHashParam d) => IncrementalHash (SipHash c d) where
     type Context (SipHash c d) = SipHashContext c d
-    update = sipHashUpdate
+    type DigestSize (SipHash c d) = 8
+    updatePtr = sipHashUpdate
     finalize = sipHashFinalize
 
-    {-# INLINE update #-}
+    {-# INLINE updatePtr #-}
     {-# INLINE finalize #-}
 
 instance (SipHashParam c, SipHashParam d) => Hash (SipHash c d) where
