@@ -27,6 +27,7 @@ module Data.Hash.SHA3
 , type Shake256_512
 
 , module Data.Hash.Class.Mutable
+, OpenSslException(..)
 ) where
 
 import Data.Hash.Class.Mutable

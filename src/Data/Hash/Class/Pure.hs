@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,6 +16,7 @@
 module Data.Hash.Class.Pure
 ( Hash(..)
 , IncrementalHash(..)
+, digestSize
 
 , hashPtr
 , hashStorable
@@ -22,6 +24,7 @@ module Data.Hash.Class.Pure
 , hashByteStringLazy
 , hashShortByteString
 , hashByteArray
+, hashByteArray#
 
 -- * Incremental Hashing
 , updateByteString
@@ -36,15 +39,18 @@ module Data.Hash.Class.Pure
 
 import Control.Monad
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Short as BS
+import Data.Array.Byte
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
+import Data.ByteString.Short qualified as BS
 import Data.Word
 
 import Foreign.Ptr
 import Foreign.Storable
 
 import GHC.Exts
+
+import System.IO.Unsafe
 
 -- internal modules
 
@@ -60,7 +66,7 @@ class IncrementalHash a => Hash a where
 -- hash Functions
 
 hashPtr :: forall a. Hash a => Ptr Word8 -> Int -> IO a
-hashPtr p n = finalize <$!> update @a (initialize @a) p n
+hashPtr p n = finalize <$!> updatePtr @a (initialize @a) p n
 {-# INLINE hashPtr #-}
 
 hashByteString :: forall a . Hash a => B.ByteString -> a
@@ -79,9 +85,15 @@ hashStorable :: forall a b . Hash a => Storable b => b -> a
 hashStorable b = finalize $! updateStorable @a (initialize @a) b
 {-# INLINE hashStorable #-}
 
-hashByteArray :: forall a . Hash a => ByteArray# -> a
+hashByteArray :: forall a . Hash a => ByteArray -> a
 hashByteArray b = finalize $! updateByteArray @a (initialize @a) b
 {-# INLINE hashByteArray #-}
+
+hashByteArray# :: forall a . Hash a => ByteArray# -> a
+hashByteArray# b = finalize $! unsafeDupablePerformIO $
+    update# @a (initialize @a) b 0# (sizeofByteArray# b)
+
+{-# INLINE hashByteArray# #-}
 
 -- -------------------------------------------------------------------------- --
 -- Utilities

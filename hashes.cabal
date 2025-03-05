@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: hashes
-version: 0.3.0.1
+version: 0.4.0.0
 synopsis: Hash functions
 Description: Efficient implementations of hash functions
 homepage: https://github.com/larskuhtz/hs-hashes
@@ -9,9 +9,10 @@ license: MIT
 license-file: LICENSE
 author: Lars Kuhtz
 maintainer: lakuhtz@gmail.com
-copyright: Copyright (c) 2019-2024 Lars Kuhtz <lakuhtz@gmail.com>
+copyright: Copyright (c) 2019-2025 Lars Kuhtz <lakuhtz@gmail.com>
 category: Data
 tested-with:
+    GHC==9.12
     GHC==9.10
     GHC==9.6
     GHC==9.4
@@ -22,6 +23,7 @@ extra-doc-files:
 extra-source-files:
     cbits/keccak.h
     cbits/keccak.c
+    cbits/evp_wrapper.h
 
 source-repository head
     type: git
@@ -53,12 +55,14 @@ common openssl-common
     if flag(with-openssl)
         c-sources:
             cbits/keccak.c
+        includes:
+            evp_wrapper.h
+        include-dirs: cbits
         cpp-options: -DWITH_OPENSSL=1
         if flag(openssl-use-pkg-config)
             pkgconfig-depends: libcrypto
         else
             extra-libraries: crypto
-        include-dirs: cbits
 
 library
     import: openssl-common
@@ -93,7 +97,10 @@ library
         -msse4.2
     build-depends:
         , base >=4.11 && <5
-        , bytestring >=0.10
+        , bytestring >=0.12
+    if impl(ghc < 9.4)
+        build-depends: data-array-byte
+            , data-array-byte >=0.1
 
 test-suite tests
     import: openssl-common

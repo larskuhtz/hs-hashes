@@ -1,4 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -20,10 +22,10 @@ module Test.Data.Hash.Class.Pure
 ) where
 
 import Data.Bits
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Short as BS
-import qualified Data.ByteString.Unsafe as B
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
+import Data.ByteString.Short qualified as BS
+import Data.ByteString.Unsafe qualified as B
 
 import Foreign.Marshal
 import Foreign.Ptr
@@ -75,7 +77,8 @@ newtype TestHash = TestHash { _getTestHash :: [Word8] }
 
 instance IncrementalHash TestHash where
     type Context TestHash = [Word8]
-    update ctx p l = (ctx ++) <$> peekArray l p
+    type DigestSize TestHash = 8
+    updatePtr ctx p l = (ctx ++) <$> peekArray l p
     finalize = TestHash
 
 instance Hash TestHash where
@@ -107,7 +110,7 @@ prop_hashByteArray bytes = unsafeDupablePerformIO $ IO $ \s0 ->
             case copyToArray 0# bytes a# s1 of
                 s2 -> case unsafeFreezeByteArray# a# s2 of
                     (# s3, b# #) ->
-                        let r = hashByteArray @TestHash () b# === TestHash bytes
+                        let r = hashByteArray# @TestHash () b# === TestHash bytes
                         in (# s3, r #)
   where
     !(I# size) = length bytes

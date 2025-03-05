@@ -12,10 +12,9 @@ jobs:
       fail-fast: false
       matrix:
         ghc:
-        - '9.2'
-        - '9.4'
         - '9.6'
         - '9.10'
+        - '9.12'
         cabal:
         - '3.12'
         os:
@@ -29,15 +28,15 @@ jobs:
         - '-with-openssl'
         include:
         - ghc: '9.2'
-          os: macos-latest
+          os: ubuntu-22.04
           cabal: '3.12'
           cryptonite: '+test-cryptonite +benchmark-cryptonite'
           openssl: '+with-openssl'
         - ghc: '9.4'
-          os: macos-latest
+          os: ubuntu-22.04
           cabal: '3.12'
-          cryptonite: '-test-cryptonite +benchmark-cryptonite'
-          openssl: '-with-openssl'
+          cryptonite: '+test-cryptonite +benchmark-cryptonite'
+          openssl: '+with-openssl'
         - ghc: '9.6'
           os: macos-latest
           cabal: '3.12'

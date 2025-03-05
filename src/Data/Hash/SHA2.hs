@@ -23,6 +23,7 @@ module Data.Hash.SHA2
 , Sha2_512_256(..)
 
 , module Data.Hash.Class.Mutable
+, OpenSslException(..)
 ) where
 
 import Data.Hash.Class.Mutable
